@@ -1,4 +1,4 @@
-# Fogmeter: daily cognitive benchmark, design v0.3
+# Fogmeter: daily cognitive benchmark, design v0.3 (approved; v1 built)
 
 > Status: **draft for approval**. There is no app code yet.
 >
@@ -371,11 +371,15 @@ Bringing 4–6 weeks of app data to that appointment is genuinely useful.
     - It needs a one-time ~5-min token setup.
     - After that it's invisible.
     - It also lets me analyse your data in later sessions.
-  - Only scores and trial data are backed up, **no audio**. Audio is kept on the phone for 14 days for spot-checks, then deleted.
+  - Only scores, trial data and answers are backed up. **No audio is recorded at all**; the end-of-session check screen replaces audio spot-checks.
   - The app code stays in this public repo. Your data never goes here.
-- **Launch**:
-  - One home-screen icon.
-  - Optional later: an iOS Shortcut that opens it when your meditation timer ends.
+- **Launch (built in v1)**: via an **iOS Shortcut** on the home screen, which opens the app in Safari.
+  - An automation stamps the time you stop your alarm (wake time).
+  - The Shortcut reads the last-24 h step count from Apple Health, which replaces the activity question.
+  - Optional: a charger-connected automation stamps bedtime.
+  - The app runs in a Safari tab rather than as a home-screen web app, because a Shortcut can only open Safari, and
+    the two keep separate storage.
+  - Setup steps are in the app under "Uitleg".
 
 ### v1 scope (build first)
 - All 6 session steps

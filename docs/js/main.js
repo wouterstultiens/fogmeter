@@ -17,7 +17,7 @@ let syncState = { status: 'idle' };
 // Shortened timings for automated end-to-end tests only (?e2e in the URL).
 const E2E = new URLSearchParams(location.search).has('e2e');
 const DUR = E2E
-  ? { pvt: 6000, symbols: 4, recall: 3, fluency: 3 }
+  ? { pvt: 6000, symbols: 4, recall: 8, fluency: 8 }
   : { pvt: undefined, symbols: undefined, recall: 30, fluency: 60 };
 
 // ---------------- home ----------------
@@ -199,7 +199,9 @@ async function start(kind, practice) {
       prompt.mode === 'letter'
         ? 'Je krijgt zo een letter. Noem 60 seconden lang hardop zoveel mogelijk woorden die daarmee beginnen.'
         : 'Je krijgt zo een categorie. Noem 60 seconden lang hardop zoveel mogelijk woorden die erbij horen.',
-      'Geen namen van personen of plaatsen, en niet hetzelfde woord in een andere vorm (bal, ballen).',
+      prompt.mode === 'letter'
+        ? 'Geen namen van personen of plaatsen, en niet hetzelfde woord in een andere vorm (bal, ballen).'
+        : 'Niet hetzelfde woord in een andere vorm (bal, ballen).',
     ]);
     current = 'fluency';
     const flu = await freeResponse({ title: prompt.label, subtitle: 'Woorden noemen', seconds: DUR.fluency, inputMode: cfg.inputMode, allowDone: false });

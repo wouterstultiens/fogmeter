@@ -36,15 +36,15 @@ const SHAPES = [
   '<circle cx="50" cy="50" r="40" fill="none" stroke-width="14"/>',
   '<path d="M10 50a40 40 0 0 1 80 0z"/>',
   '<path d="M50 6 94 50 72 50 72 94 28 94 28 50 6 50z"/>',
-  '<path d="M60 8a42 42 0 1 0 0 84 32 32 0 1 1 0-84z"/>',
+  '<path d="M14 8h28v56h44v28H14z"/>',
   '<rect x="8" y="36" width="84" height="28"/>',
   '<path d="M10 20 50 60 90 20 90 48 50 88 10 48z"/>',
   ngon(3, 44, Math.PI / 2),
   '<path d="M8 8h36v36H8zM56 56h36v36H56z"/>',
 ];
 
-function svg(i) {
-  return `<svg viewBox="0 0 100 100" fill="currentColor" stroke="currentColor">${SHAPES[i]}</svg>`;
+export function svg(i) {
+  return `<svg viewBox="0 0 100 100" fill="currentColor" stroke="currentColor" stroke-width="0">${SHAPES[i]}</svg>`;
 }
 
 function pairEl(pair, cls = 'pair') {

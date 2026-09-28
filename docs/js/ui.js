@@ -28,7 +28,7 @@ export function h(tag, props = {}, ...children) {
 
 export function render(...nodes) {
   const root = app();
-  root.replaceChildren(...nodes);
+  root.replaceChildren(...nodes.flat().filter((n) => n != null && n !== false));
   window.scrollTo(0, 0);
   return root;
 }

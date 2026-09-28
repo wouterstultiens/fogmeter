@@ -8,6 +8,7 @@ import { WORDS, CATEGORIES, LETTERS } from './data/words_nl.js';
 const EPOCH_UTC = Date.UTC(2026, 8, 1); // 2026-09-01
 const LIST_LEN = 12;
 const MAX_PER_TAG = { other: 2 };
+const MIN_REPEAT_DAYS = 90;
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -54,16 +55,25 @@ export function fluencyPrompt(day) {
   return { mode: 'category', category: cat.name, tag: cat.tag, label: `Noem zoveel mogelijk: ${cat.name}` };
 }
 
+// Category tags that also cover related word tags (e.g. "dieren" includes birds and fish).
+const RELATED_TAGS = {
+  animal: ['animal', 'bird', 'fish', 'insect'],
+  food: ['food', 'fruit', 'vegetable', 'drink'],
+  plant: ['plant', 'flower', 'tree'],
+  nature: ['nature', 'plant', 'flower', 'tree', 'weather'],
+  kitchen: ['kitchen', 'food'],
+  building: ['building'],
+};
+
 function fitsList(entry, list, prompt) {
   const [word, tag] = entry;
   if (prompt.mode === 'letter' && word[0].toUpperCase() === prompt.letter) return false;
-  if (prompt.mode === 'category' && prompt.tag && tag === prompt.tag) return false;
+  if (prompt.mode === 'category' && prompt.tag && (RELATED_TAGS[prompt.tag] || [prompt.tag]).includes(tag)) return false;
   const sameTag = list.filter((e) => e[1] === tag).length;
   return sameTag < (MAX_PER_TAG[tag] ?? 1);
 }
 
-function pickList(queue, prompt) {
-  const list = [];
+function pickList(queue, prompt, list = []) {
   const skipped = [];
   while (list.length < LIST_LEN && queue.length) {
     const e = queue.shift();
@@ -77,18 +87,30 @@ function pickList(queue, prompt) {
 
 let cache = { day: -1, queue: null };
 
+function refill(day, current = []) {
+  // Next seeded shuffle of the pool, minus words already queued, picked today or used too recently.
+  const excluded = new Set([...cache.queue, ...current].map((e) => e[0]));
+  const fresh = shuffle(WORDS, mulberry32(9000 + cache.cycle++))
+    .filter((e) => !excluded.has(e[0]) && day - (cache.lastUsed.get(e[0]) ?? -1e9) >= MIN_REPEAT_DAYS);
+  cache.queue.push(...fresh);
+}
+
 /**
- * Word list for a given day. Words are consumed from a seeded shuffle of the pool, so a word
- * only comes back after the whole pool (~100 days) has been used.
+ * Word list for a given day. Words are consumed from successive seeded shuffles of the pool;
+ * a word never returns within MIN_REPEAT_DAYS.
  */
 export function wordListForDay(day) {
-  if (cache.day < 0 || day < cache.day) cache = { day: -1, queue: [], cycle: 0 };
+  if (cache.day < 0 || day < cache.day) cache = { day: -1, queue: [], cycle: 0, lastUsed: new Map() };
   let list = null;
   for (let d = cache.day + 1; d <= day; d++) {
-    if (cache.queue.length < LIST_LEN * 3) {
-      cache.queue.push(...shuffle(WORDS, mulberry32(9000 + cache.cycle++)));
-    }
+    if (cache.queue.length < LIST_LEN * 3) refill(d);
     list = pickList(cache.queue, fluencyPrompt(d));
+    for (let tries = 0; list.length < LIST_LEN && tries < 20; tries++) {
+      // Queue held only words that don't fit today: top it up and continue.
+      refill(d, list);
+      list = pickList(cache.queue, fluencyPrompt(d), list);
+    }
+    for (const e of list) cache.lastUsed.set(e[0], d);
     cache.day = d;
     cache.last = list;
   }

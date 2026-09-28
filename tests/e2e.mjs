@@ -35,12 +35,14 @@ await clickText('Verder');
 await clickText('Start');
 const words = new Set();
 const t0 = Date.now();
-while (Date.now() - t0 < 22000) {
-  const w = (await page.locator('.bigword').textContent().catch(() => '')) || '';
-  if (w && w !== '+') words.add(w);
-  if (words.size >= 12 && !(await page.locator('.bigword').count())) break;
-  if (await page.locator('.prompt').count()) break;
-  await page.waitForTimeout(150);
+while (Date.now() - t0 < 25000) {
+  const state = await page.evaluate(() => ({
+    word: document.querySelector('.bigword')?.textContent || '',
+    recall: !!document.querySelector('.prompt'),
+  }));
+  if (state.word && state.word !== '+') words.add(state.word);
+  if (state.recall) break;
+  await page.waitForTimeout(100);
 }
 console.log('words seen:', [...words].join(', '));
 if (words.size !== 12) throw new Error(`expected 12 words, saw ${words.size}`);
