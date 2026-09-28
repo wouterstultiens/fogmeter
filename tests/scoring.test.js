@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   tokenize, tokenMatches, detectListWords, phoneticKey, markTranscript, speechTiming, summarizePvt, summarizeSymbols,
-  validity, computeIndices, rolling, RUN_IN,
+  validity, computeIndices, rolling, RUN_IN, METRICS,
 } from '../docs/js/scoring.js';
 
 test('tokenize normalises and drops fillers', () => {
@@ -99,6 +99,21 @@ test('validity flags interruptions, false starts and low accuracy', () => {
   const bad = validity({ flags: { interrupted: true }, pvt: { summary: { n: 50, falseStarts: 10 } }, symbols: { summary: { accuracy: 0.6 } } });
   assert.equal(bad.valid, false);
   assert.equal(bad.reasons.length, 3);
+});
+
+test('validity ignores interruptions during a skipped part only', () => {
+  const during = (stages, skipped) => validity({ flags: { interrupted: true, interruptedDuring: stages }, skipped }).valid;
+  assert.equal(during(['pvt'], ['pvt']), true);
+  assert.equal(during(['immediate'], ['words']), true);
+  assert.equal(during(['pvt', 'symbols'], ['pvt']), false);
+  assert.equal(during(['immediate'], ['delayed']), false);
+  assert.equal(during(['pvt'], []), false);
+});
+
+test('memory metric needs both recalls (a skipped 2nd recall is not a 0)', () => {
+  assert.equal(METRICS.memory({ memory: { immediate: 7, delayed: 5 } }), 12);
+  assert.equal(METRICS.memory({ memory: { immediate: 7, delayed: null } }), null);
+  assert.equal(METRICS.memory({}), null);
 });
 
 function fakeSession(i, jitter = 0) {

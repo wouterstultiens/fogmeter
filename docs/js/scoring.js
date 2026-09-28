@@ -190,9 +190,23 @@ export function round(x, d = 2) {
 
 // ---------- validity ----------
 
+// Skippable parts of a session (session.skipped) and the timed stages each one covers.
+export const SKIP_STAGES = {
+  checkin: [],
+  words: ['encode', 'immediate', 'delayed'],
+  delayed: ['delayed'],
+  pvt: ['pvt'],
+  symbols: ['symbols'],
+  yesterday: [],
+};
+
 export function validity(session) {
   const reasons = [];
-  if (session.flags?.interrupted) reasons.push('onderbroken');
+  // Leaving the app only matters during a part that was actually done (e.g. a phone call during
+  // the reaction test, which you then skip, leaves the rest of the session valid).
+  const skippedStages = new Set((session.skipped || []).flatMap((p) => SKIP_STAGES[p] || []));
+  const during = session.flags?.interruptedDuring || [];
+  if (session.flags?.interrupted && (!during.length || during.some((st) => !skippedStages.has(st)))) reasons.push('onderbroken');
   const p = session.pvt?.summary;
   if (p) {
     const responses = p.n + p.falseStarts;
@@ -213,7 +227,7 @@ export const METRICS = {
   pvtSpeed: (s) => s.pvt?.summary?.meanSpeed,
   pvtLapses: (s) => neg(s.pvt?.summary?.lapses),
   symRT: (s) => neg(logOrNull(s.symbols?.summary?.medianRT)),
-  memory: (s) => (s.memory ? s.memory.immediate + s.memory.delayed : null),
+  memory: (s) => (Number.isFinite(s.memory?.immediate) && Number.isFinite(s.memory?.delayed) ? s.memory.immediate + s.memory.delayed : null),
   fogNow: (s) => neg(s.now?.fog),
   fogDay: (s) => neg(s.yesterday?.dayFog),
 };

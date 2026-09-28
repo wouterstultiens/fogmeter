@@ -84,6 +84,7 @@ button.primary {
   padding: 18px;
 }
 button.link { background: none; border: none; color: var(--accent); padding: 8px 0; min-height: 0; }
+button.link.muted { color: var(--muted); font-size: 15px; }
 button.selected { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 650; }
 button:disabled { opacity: .45; }
 
@@ -117,6 +118,10 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
   user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 .task .topbar { position: absolute; top: calc(env(safe-area-inset-top) + 12px); left: var(--gutter); right: var(--gutter);
   display: flex; justify-content: space-between; color: var(--muted); font-size: 14px; }
+/* Top right, below the topbar: far from where the thumb taps during the reaction test. */
+.task .skip { position: absolute; top: calc(env(safe-area-inset-top) + 40px); right: var(--gutter);
+  background: none; border: none; color: var(--muted); font-size: 13px; padding: 8px 0 8px 16px; min-height: 0; }
+.task .skip.armed { color: var(--warn); }
 .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: var(--panel-2); }
 .progress > div { height: 100%; background: var(--accent); width: 0; }
 

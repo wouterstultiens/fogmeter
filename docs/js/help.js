@@ -15,6 +15,7 @@ export function helpView() {
         'Open Fogmeter via de Shortcut op je beginscherm. Nog geen thee.',
         'Niet storen aan, stil plekje, telefoon altijd op dezelfde manier vast.',
         'Doe de sessie ook in het weekend. Consistentie is belangrijker dan een perfecte dag.',
+        'Lukt een onderdeel niet (telefoontje, lawaai)? Tik op "Overslaan": onder de Start-knop, of rechtsboven tijdens de taak (twee keer tikken). Dat onderdeel telt die dag dan niet mee; de rest wel.',
       ),
       h('p.small.muted', 'De eerste 14 sessies zijn inwerken (je wordt vanzelf beter). Die worden gewoon bewaard en je ziet ze bij Resultaten → Ruwe scores. Daarna 28 dagen basislijn: verander dan nog niets. Daarna kun je experimenten doen.'),
     ),

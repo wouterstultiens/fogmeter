@@ -14,6 +14,11 @@ opened through an iOS Shortcut. Why it measures what it measures: see [DESIGN.md
    from speech recognition. You only fix mistakes. The list is shown only here, at the end.
 8. Three "yesterday" questions + an optional note (prefilled with any quick notes made since the last session)
 
+**Skipping:** every part has a small "Overslaan" (skip): below the Start button on each intro screen, and top
+right while a task runs (tap twice, so a stray tap never skips). A skipped part just has no score that day; the rest
+of the session counts normally. Skipping the list or the first recall drops the whole word list. Leaving the app
+during a part you then skip (e.g. a phone call during the reaction test) doesn't make the session invalid.
+
 **Any time (optional):** "+ Notitie" on the home screen: a short text plus an optional "how clear right now" 0–10.
 The text prefills the next morning's note; the rating is stored separately.
 

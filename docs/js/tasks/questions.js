@@ -8,6 +8,7 @@ const SLEEP_Q = ['zeer slecht', 'slecht', 'redelijk', 'goed', 'zeer goed'].map((
 /**
  * prefill: { bed:'HH:MM', wake:'HH:MM', bedSource, wakeSource } (source: 'shortcut' | 'vorige keer' | 'standaard')
  * Resolves { fog, sleepQuality, bedTime, wakeTime, bedSource, wakeSource }.
+ * "Overslaan" resolves the same, with null for unanswered questions and skipped: true.
  */
 export function checkIn(prefill, { practice = false } = {}) {
   return new Promise((resolve) => {
@@ -38,11 +39,13 @@ export function checkIn(prefill, { practice = false } = {}) {
         h('p.small.muted', 'Klopt het? Dan hoef je niets te doen.'),
       ),
       next,
+      h('button.link.muted', { onclick: () => submit(true) }, 'Overslaan'),
     );
 
-    function submit() {
+    function submit(skipped = false) {
       resolve({
         ...ans,
+        ...(skipped ? { skipped: true } : {}),
         bedTime: bed.value || prefill.bed,
         wakeTime: wake.value || prefill.wake,
         bedSource: bed.value !== prefill.bed ? 'handmatig' : prefill.bedSource,
@@ -58,15 +61,19 @@ const STRESS = [{ label: 'laag', value: 1 }, { label: 'normaal', value: 2 }, { l
 /**
  * steps: number|null. When steps come from the Shortcut the activity question is skipped.
  * notePrefill: { text, ids } from quick notes made since the last session; fills "Iets bijzonders?".
+ * "Overslaan" resolves with what was filled in so far and skipped: true.
  */
 export function yesterday({ steps = null, notePrefill = null } = {}) {
   return new Promise((resolve) => {
     const ans = { dayFog: null, dayOff: false, activity: null, stress: null };
     const needActivity = steps == null;
-    const next = h('button.primary', {
-      disabled: true,
-      onclick: () => resolve({ ...ans, note: note.value.trim(), ...(notePrefill ? { noteIds: notePrefill.ids } : {}) }),
-    }, 'Verder');
+    const submit = (skipped = false) => resolve({
+      ...ans,
+      note: note.value.trim(),
+      ...(notePrefill ? { noteIds: notePrefill.ids } : {}),
+      ...(skipped ? { skipped: true } : {}),
+    });
+    const next = h('button.primary', { disabled: true, onclick: () => submit() }, 'Verder');
     const update = () => {
       next.disabled = (ans.dayFog === null && !ans.dayOff) || ans.stress === null || (needActivity && ans.activity === null);
     };
@@ -102,6 +109,7 @@ export function yesterday({ steps = null, notePrefill = null } = {}) {
         note,
       ),
       next,
+      h('button.link.muted', { onclick: () => submit(true) }, 'Overslaan'),
     );
   });
 }
@@ -110,15 +118,16 @@ export function yesterday({ steps = null, notePrefill = null } = {}) {
  * End-of-session review, right after the second recall (the list is never shown before this).
  * On top: what the app heard, with recognised list words marked. Below: one row per list word with
  * "1e / 2e keer" toggles, prefilled from speech recognition. You only fix what it got wrong.
- * first/second: recallTask results. Resolves { first: boolean[], second: boolean[], auto, edits }.
+ * first/second: recallTask results; second is null when the second recall was skipped (then there is
+ * only a "1e keer" column). Resolves { first: boolean[], second: boolean[]|null, auto, edits }.
  */
 export function review(words, first, second) {
   return new Promise((resolve) => {
-    const auto1 = detectListWords(first.speech.texts, words);
-    const auto2 = detectListWords(second.speech.texts, words);
-    const sel = [auto1.hit.slice(), auto2.hit.slice()];
+    const recalls = second ? [first, second] : [first];
+    const autos = recalls.map((r) => detectListWords(r.speech.texts, words));
+    const sel = autos.map((a) => a.hit.slice());
 
-    const counters = [h('span.tag', ''), h('span.tag', '')];
+    const counters = recalls.map(() => h('span.tag', ''));
     const paint = () => sel.forEach((v, k) => { counters[k].textContent = `${k + 1}e keer: ${v.filter(Boolean).length}`; });
     const toggle = (k, i) => {
       const b = h('button.toggle', { type: 'button' }, '');
@@ -128,20 +137,21 @@ export function review(words, first, second) {
       return b;
     };
 
-    const grid = h('div.review-grid', h('span'), h('span.hdr', '1e keer'), h('span.hdr', '2e keer'));
-    words.forEach((w, i) => grid.append(h('span', w), toggle(0, i), toggle(1, i)));
+    const grid = h('div.review-grid', { style: second ? null : { gridTemplateColumns: '1fr auto' } },
+      h('span'), ...recalls.map((_, k) => h('span.hdr', `${k + 1}e keer`)));
+    words.forEach((w, i) => grid.append(h('span', w), ...recalls.map((_, k) => toggle(k, i))));
 
     render(
       h('h2', 'Controle'),
       h('p.muted.small', 'Bovenaan staat wat de app hoorde. De vinkjes eronder zijn daarop al ingevuld. Klopt iets niet met wat je zei? Tik om te verbeteren.'),
-      h('div.card', h('h3', 'Wat de app hoorde'), heardBlock('1e keer', first, words, auto1.hit), heardBlock('2e keer', second, words, auto2.hit)),
-      h('div.card', grid, h('div.row', h('span.grow'), counters[0], counters[1])),
+      h('div.card', h('h3', 'Wat de app hoorde'), ...recalls.map((r, k) => heardBlock(`${k + 1}e keer`, r, words, autos[k].hit))),
+      h('div.card', grid, h('div.row', h('span.grow'), ...counters)),
       h('button.primary', {
         onclick: () => resolve({
           first: sel[0],
-          second: sel[1],
-          auto: { first: auto1.hit, second: auto2.hit, extraFirst: auto1.extra, extraSecond: auto2.extra },
-          edits: sel[0].filter((v, i) => v !== auto1.hit[i]).length + sel[1].filter((v, i) => v !== auto2.hit[i]).length,
+          second: sel[1] || null,
+          auto: { first: autos[0].hit, second: autos[1]?.hit || null, extraFirst: autos[0].extra, extraSecond: autos[1]?.extra || null },
+          edits: sel.reduce((n, v, k) => n + v.filter((x, i) => x !== autos[k].hit[i]).length, 0),
         }),
       }, 'Opslaan'),
     );

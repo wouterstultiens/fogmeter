@@ -132,7 +132,8 @@ async function start(kind, practice) {
   const sessions = await db.all();
   const { prefill, steps } = await prefillTimes(sessions);
   const experienced = sessions.filter((x) => x.kind === 'full').length >= AUTO_START_AFTER;
-  const intro = (title, lines) => instructions(title, lines, 'Start', null, null, experienced && !E2E ? AUTO_START_S : 0);
+  // Resolves 'start' or 'skip'.
+  const intro = (title, lines) => instructions(title, lines, { autoSeconds: experienced && !E2E ? AUTO_START_S : 0, skippable: true });
 
   const flags = { interrupted: false, interruptedDuring: [] };
   let current = 'checkin';
@@ -151,6 +152,8 @@ async function start(kind, practice) {
   document.addEventListener('pointerdown', onTap, true);
 
   const now = await checkIn(prefill, { practice });
+  // Parts skipped with "Overslaan" (see SKIP_STAGES); a skipped part simply has no score today.
+  const skipped = now.skipped ? ['checkin'] : [];
   const s = {
     id: `${date}_${fmtTime(startedAt).replace(':', '')}`,
     date,
@@ -162,74 +165,101 @@ async function start(kind, practice) {
     now,
     context: { ...sleepContext(startedAt, now.bedTime, now.wakeTime), steps24h: steps, wakeSource: now.wakeSource, bedSource: now.bedSource },
     flags,
+    skipped,
   };
 
+  // Skipping the list itself or the first recall drops the whole word list for today.
   let first = null;
   if (kind === 'full') {
     current = 'encode-instr';
-    await intro('Woordenlijst', [
+    if (await intro('Woordenlijst', [
       'Je ziet en hoort 12 woorden. Onthoud er zoveel mogelijk.',
       'Daarna zeg je ze hardop, in elke volgorde. Later in de sessie vraag ik ze nog een keer.',
-    ]);
-    current = 'encode';
-    await encodeList(words);
-    current = 'immediate';
-    first = await recallTask({ title: 'Noem alle woorden die je nog weet', subtitle: 'Woordenlijst · 1e keer', seconds: DUR.recall, hints: words });
-    s.words = words;
-    s.tts = ttsVoiceName();
+    ]) === 'start') {
+      current = 'encode';
+      if (!(await encodeList(words)).skipped) {
+        current = 'immediate';
+        const r = await recallTask({ title: 'Noem alle woorden die je nog weet', subtitle: 'Woordenlijst · 1e keer', seconds: DUR.recall, hints: words });
+        if (!r.skipped) first = r;
+      }
+    }
+    if (first) {
+      s.words = words;
+      s.tts = ttsVoiceName();
+    } else {
+      skipped.push('words');
+    }
   }
 
   current = 'pvt-instr';
-  await intro('Reactietest (3 min)', [
+  if (await intro('Reactietest (3 min)', [
     'Tik zo snel mogelijk ergens op het scherm zodra de teller begint te lopen.',
     'Niet tikken vóór de teller loopt. Houd de telefoon zoals altijd, zelfde hand.',
-  ]);
-  await countdown(3);
-  current = 'pvt';
-  const pvt = await runPvt({ durationMs: DUR.pvt });
-  s.pvt = { trials: pvt.trials, summary: pvt.summary };
-  s.context.frameMs = pvt.frameMs;
-  flags.lowFrameRate = pvt.frameMs != null && pvt.frameMs > 25;
+  ]) === 'skip') {
+    skipped.push('pvt');
+  } else {
+    await countdown(3);
+    current = 'pvt';
+    const pvt = await runPvt({ durationMs: DUR.pvt });
+    s.context.frameMs = pvt.frameMs;
+    flags.lowFrameRate = pvt.frameMs != null && pvt.frameMs > 25;
+    if (pvt.skipped) skipped.push('pvt');
+    else s.pvt = { trials: pvt.trials, summary: pvt.summary };
+  }
 
   if (kind === 'full') {
     current = 'symbols-instr';
-    await intro('Symbolen (± 1 min)', [
+    if (await intro('Symbolen (± 1 min)', [
       'Bovenaan staan drie paren symbolen. Onderaan twee paren.',
       'Tik zo snel mogelijk op het onderste paar dat precies zo bovenaan staat.',
-    ]);
-    await countdown(3);
-    current = 'symbols';
-    const sym = await runSymbols({ trials: DUR.symbols });
-    s.symbols = { trials: sym.trials, summary: sym.summary };
-    motorOffsets.push(...sym.motor.offsets);
-    s.motor = { symbolMisses: sym.motor.misses };
+    ]) === 'skip') {
+      skipped.push('symbols');
+    } else {
+      await countdown(3);
+      current = 'symbols';
+      const sym = await runSymbols({ trials: DUR.symbols });
+      if (sym.skipped) {
+        skipped.push('symbols');
+      } else {
+        s.symbols = { trials: sym.trials, summary: sym.summary };
+        motorOffsets.push(...sym.motor.offsets);
+        s.motor = { symbolMisses: sym.motor.misses };
+      }
+    }
 
-    current = 'delayed-instr';
-    await intro('Woordenlijst, nog een keer', ['Noem opnieuw alle woorden van de lijst van het begin die je nog weet. Zeg ze hardop.']);
-    current = 'delayed';
-    const second = await recallTask({ title: 'Noem alle woorden van de lijst', subtitle: 'Woordenlijst · 2e keer', seconds: DUR.recall, hints: words });
+    if (first) {
+      current = 'delayed-instr';
+      let second = null;
+      if (await intro('Woordenlijst, nog een keer', ['Noem opnieuw alle woorden van de lijst van het begin die je nog weet. Zeg ze hardop.']) === 'start') {
+        current = 'delayed';
+        const r = await recallTask({ title: 'Noem alle woorden van de lijst', subtitle: 'Woordenlijst · 2e keer', seconds: DUR.recall, hints: words });
+        if (!r.skipped) second = r;
+      }
+      if (!second) skipped.push('delayed');
 
-    current = 'review';
-    const rev = await review(words, first, second);
-    const n1 = rev.first.filter(Boolean).length;
-    const n2 = rev.second.filter(Boolean).length;
-    const keep = (r) => ({ durationMs: r.durationMs, endedEarly: r.endedEarly, speech: r.speech, timing: speechTiming(r.speech.timeline, words, r.durationMs) });
-    s.recall = { first: keep(first), second: keep(second) };
-    s.memory = {
-      immediate: n1,
-      delayed: n2,
-      retention: n1 ? Math.round((n2 / n1) * 100) / 100 : null,
-      recalledFirst: rev.first,
-      recalledSecond: rev.second,
-      auto: rev.auto,
-      reviewEdits: rev.edits,
-    };
+      current = 'review';
+      const rev = await review(words, first, second);
+      const n1 = rev.first.filter(Boolean).length;
+      const n2 = second ? rev.second.filter(Boolean).length : null;
+      const keep = (r) => ({ durationMs: r.durationMs, endedEarly: r.endedEarly, speech: r.speech, timing: speechTiming(r.speech.timeline, words, r.durationMs) });
+      s.recall = { first: keep(first), second: second ? keep(second) : null };
+      s.memory = {
+        immediate: n1,
+        delayed: n2,
+        retention: n1 && n2 !== null ? Math.round((n2 / n1) * 100) / 100 : null,
+        recalledFirst: rev.first,
+        recalledSecond: rev.second,
+        auto: rev.auto,
+        reviewEdits: rev.edits,
+      };
+    }
   }
 
   current = 'yesterday';
   document.removeEventListener('visibilitychange', onVis);
   const notePrefill = practice ? null : pendingNotes(await notesDb.all(), lastSessionAt(sessions));
   s.yesterday = await yesterday({ steps, notePrefill });
+  if (s.yesterday.skipped) skipped.push('yesterday');
 
   document.removeEventListener('pointerdown', onTap, true);
   s.motor = { ...(s.motor || {}), medianOffsetPx: motorOffsets.length ? median(motorOffsets) : null, taps: motorOffsets.length };

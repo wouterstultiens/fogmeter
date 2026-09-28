@@ -3,7 +3,7 @@
 // Timing: onset = rAF frame timestamp of the frame that shows the counter; response = event.timeStamp.
 // Both are on the performance.now() clock; the constant display/touch latency of the device cancels
 // out because the same phone is always used.
-import { h, taskScreen } from '../ui.js';
+import { h, taskScreen, skipButton } from '../ui.js';
 import { summarizePvt } from '../scoring.js';
 
 export const PVT_DURATION_MS = 180000;
@@ -18,12 +18,15 @@ function eventTime(e) {
   return e.timeStamp > 0 && e.timeStamp < 1e11 ? e.timeStamp : performance.now();
 }
 
+/** Resolves { trials, summary, frameMs, skipped }; after a skip the trials are incomplete. */
 export function runPvt({ durationMs = PVT_DURATION_MS } = {}) {
   return new Promise((resolve) => {
     const counter = h('div.pvt-counter.hidden', '000');
     const msg = h('div.pvt-msg', '');
     const bar = h('div');
-    const screen = taskScreen(h('div.pvt-box', counter), msg, h('div.progress', bar));
+    let skipped = false;
+    const skip = skipButton(() => { skipped = true; finish(); });
+    const screen = taskScreen(h('div.pvt-box', counter), msg, skip, h('div.progress', bar));
 
     const trials = [];
     const frameDeltas = [];
@@ -45,6 +48,7 @@ export function runPvt({ durationMs = PVT_DURATION_MS } = {}) {
       msg.textContent = text;
       msg.className = warn ? 'pvt-msg warn' : 'pvt-msg';
       setTimeout(() => {
+        if (state === 'done') return;
         counter.classList.add('hidden');
         msg.textContent = '';
         if (performance.now() - t0 >= durationMs) finish();
@@ -103,7 +107,7 @@ export function runPvt({ durationMs = PVT_DURATION_MS } = {}) {
       screen.removeEventListener('pointerdown', onDown);
       const sorted = frameDeltas.slice().sort((a, b) => a - b);
       const frameMs = sorted.length ? round1(sorted[Math.floor(sorted.length / 2)]) : null;
-      resolve({ trials, summary: summarizePvt(trials), frameMs });
+      resolve({ trials, summary: summarizePvt(trials), frameMs, skipped });
     }
 
     screen.addEventListener('pointerdown', onDown, { passive: false });

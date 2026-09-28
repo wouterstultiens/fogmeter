@@ -11,6 +11,12 @@ const SERIES = [
 // A 7-day mean of a z-score (SD 1) varies by ~1/sqrt(7); ±2 of that ≈ ±0.76 is "normal wobble".
 const BAND = 0.76;
 
+const SKIP_LABELS = {
+  checkin: 'vragen nu', words: 'woordenlijst', delayed: 'woordenlijst 2e keer',
+  pvt: 'reactietest', symbols: 'symbolen', yesterday: 'vragen gisteren',
+};
+const skippedText = (s) => (s.skipped || []).map((p) => SKIP_LABELS[p] || p).join(', ');
+
 /** onOpen(session): called when a table row is tapped (shows sessionDetail). */
 export function resultsView(sessions, highlight = null, { notes = [], onOpen = null } = {}) {
   const ix = computeIndices(sessions);
@@ -63,6 +69,7 @@ function todayCard(s, days) {
   return h('div.card',
     h('div.row', h('h3.grow', `Sessie ${s.date}`), s.valid ? null : h('span.tag.warn', 'ongeldig')),
     s.valid ? null : h('p.small', { style: { color: 'var(--warn)' } }, `Ongeldig: ${s.invalidReasons.join(', ')}`),
+    s.skipped?.length ? h('p.small.muted', `Overgeslagen: ${skippedText(s)}`) : null,
     h('div.kpis', ...items),
     h('p.small.muted', 'Eén dag zegt weinig: ongeveer de helft is ruis. Kijk naar de week-trend.'),
   );
@@ -294,7 +301,7 @@ function tableCard(sessions, onOpen) {
           f(s.pvt?.summary?.medianRT),
           f(s.pvt?.summary?.lapses),
           f(s.symbols?.summary?.medianRT),
-          s.memory ? `${s.memory.immediate}+${s.memory.delayed}` : '–',
+          s.memory ? `${s.memory.immediate}+${s.memory.delayed ?? '–'}` : '–',
           f(s.now?.fog),
           onOpen ? '›' : '',
         ].map((v) => h('td', v)))),
@@ -338,6 +345,7 @@ export function sessionDetail(s) {
     kv('Soort', { full: 'volledig', short: 'kort', practice: 'oefenronde' }[s.kind] || s.kind),
     kv('Duur', n(dur, 1, ' min')),
     kv('Bijzonderheden', flags.join(', ') || 'geen'),
+    kv('Overgeslagen', skippedText(s) || 'niets'),
     kv('App-versie', s.appVersion),
   ));
 
@@ -359,7 +367,7 @@ export function sessionDetail(s) {
     const timing = (r) => r?.timing || {};
     const t1 = timing(s.recall?.first), t2 = timing(s.recall?.second);
     const rows = [
-      kv('Goed 1e / 2e keer', `${m.immediate} / ${m.delayed}`),
+      kv('Goed 1e / 2e keer', `${m.immediate} / ${m.delayed ?? '–'}`),
       kv('Door jou verbeterd', `${m.reviewEdits ?? 0} vinkje(s)`),
       kv('Eerste woord 1e / 2e keer', `${sec(t1.firstWordMs ?? t1.firstLatencyMs)} / ${sec(t2.firstWordMs ?? t2.firstLatencyMs)}`),
       kv('Stiltes > 5 s 1e / 2e keer', `${t1.blanks ?? '–'} / ${t2.blanks ?? '–'}`),

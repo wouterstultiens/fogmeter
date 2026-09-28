@@ -264,6 +264,9 @@ All items have a default, so a "normal" day takes three taps and an empty note.
 
 1. **Validity**:
    - A session is **invalid** if interrupted, PVT false starts > 10%, or Symbol Search accuracy < 75%.
+   - Any part can be **skipped** ("Overslaan"). It then has no score that day and drops out of that day's indices;
+     the rest counts. Skipping the list or the first recall drops the whole word list. An interruption during a
+     part that was skipped does not invalidate the session.
    - A session is **flagged** (kept, marked) for Low Power Mode, or when the note mentions skipped meditation.
    - A retake is allowed only after an invalid session.
 2. **Personal z-scores**: against the post-run-in baseline, with robust statistics

@@ -1,6 +1,8 @@
 // End-to-end smoke test: makes a quick note, then plays one full session with shortened timings (?e2e)
 // and a fake speech recogniser that returns deliberately messy transcripts (glued words, plurals, an
 // intrusion), then opens the results and one session's details.
+// Part 2 skips parts ("Overslaan"): a practice run skipping almost everything, then a saved session
+// that is interrupted during the reaction test and skips it, plus symbols, the 2nd recall and "Gisteren".
 // Run: npm run serve (in another shell), then: node tests/e2e.mjs
 import { chromium } from 'playwright';
 
@@ -198,6 +200,97 @@ await page.getByRole('button', { name: 'Klaar' }).click();
 // A session the robot made invalid (e.g. an early tap in the 6 s PVT) offers a retake instead.
 await page.waitForSelector(s.valid ? 'text=Vandaag gedaan ✓' : 'text=Je mag opnieuw', { timeout: 10000 });
 await snap('home-done');
+
+// ---------- part 2: skipping ----------
+await page.evaluate(() => new Promise((res) => {
+  const r = indexedDB.open('fogmeter');
+  r.onsuccess = () => { const tx = r.result.transaction('sessions', 'readwrite'); tx.objectStore('sessions').clear(); tx.oncomplete = res; };
+}));
+await page.goto(`${BASE}?e2e`);
+const skipTask = async () => {
+  await page.locator('.task .skip').click();
+  await page.waitForSelector('.task .skip.armed');
+  await page.locator('.task .skip').click();
+};
+
+// Practice run: skip the check-in, the word list while it is shown, and every intro after that.
+await clickText('Oefenronde (wordt niet opgeslagen)');
+await page.waitForSelector('text=Hoe helder voelt je hoofd nu?');
+await clickText('Overslaan');
+await page.waitForSelector('text=Woordenlijst');
+await clickText('Start');
+await page.waitForFunction(() => /^[a-z]{2,}/.test(document.querySelector('.bigword')?.textContent || ''));
+await skipTask();
+await page.waitForSelector('text=Reactietest (3 min)');
+await clickText('Overslaan');
+await page.waitForSelector('text=Symbolen (± 1 min)');
+await clickText('Overslaan');
+await page.waitForSelector('text=Gisteren'); // no 2nd recall: the list was skipped
+await clickText('Overslaan');
+await page.waitForSelector('text=Oefenronde: niet opgeslagen');
+await clickText('Terug');
+
+await clickText('Start (± 6 min)');
+await page.waitForSelector('text=Hoe helder voelt je hoofd nu?');
+await page.locator('.scale.s11 button').nth(4).click();
+await clickText('redelijk');
+await clickText('Verder');
+await clickText('Start');
+await page.waitForSelector('.mic', { timeout: 25000 });
+await say(list[0]);
+await clickText('Klaar');
+await page.waitForSelector('text=Reactietest (3 min)', { timeout: 15000 });
+await clickText('Start');
+await page.waitForSelector('.pvt-box');
+// A phone call: the app goes to the background during the reaction test, which is then skipped.
+await page.evaluate(() => {
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+  document.dispatchEvent(new Event('visibilitychange'));
+  delete document.hidden;
+});
+await snap('pvt-skip');
+await skipTask();
+await page.waitForSelector('text=Symbolen (± 1 min)');
+await clickText('Overslaan');
+await page.waitForSelector('text=Woordenlijst, nog een keer');
+await clickText('Start');
+await page.waitForSelector('.mic');
+await skipTask();
+await page.waitForSelector('text=Controle', { timeout: 15000 });
+const reviewCols = await page.locator('.review-grid .hdr').count();
+await snap('review-one-column');
+await clickText('Opslaan');
+await page.waitForSelector('text=Gisteren');
+await clickText('Overslaan');
+await page.waitForSelector('text=Overgeslagen: reactietest');
+const results2 = await page.locator('#app').textContent();
+await snap('results-skipped');
+await page.locator('tr.tap').first().click();
+await page.waitForSelector('text=Overgeslagen');
+const detail2 = await page.locator('#app').textContent();
+await clickText('Terug');
+await page.getByRole('heading', { name: 'Ruwe scores' }).waitFor();
+
+const saved2 = await readStore('sessions');
+const k = saved2[saved2.length - 1];
+const skipChecks = {
+  onlyOneSaved: saved2.length === 1, // the practice run is not saved
+  skipped: JSON.stringify(k.skipped) === JSON.stringify(['pvt', 'symbols', 'delayed', 'yesterday']),
+  validDespiteCall: k.valid === true && k.flags.interrupted === true && k.flags.interruptedDuring.includes('pvt'),
+  noPvt: k.pvt === undefined,
+  noSymbols: k.symbols === undefined,
+  memory: k.memory.immediate === 1 && k.memory.delayed === null && k.memory.retention === null && k.recall.second === null,
+  reviewOneColumn: reviewCols === 1,
+  yesterdaySkipped: k.yesterday.skipped === true && k.yesterday.dayFog === null,
+  checkinKept: k.now.fog === 4 && !k.now.skipped,
+  resultsText: results2.includes('Overgeslagen: reactietest, symbolen, woordenlijst 2e keer, vragen gisteren') && results2.includes('1+–'),
+  detailText: detail2.includes('1 / –'),
+};
+console.log(JSON.stringify({ skipChecks, reasons: k.invalidReasons }, null, 1));
+Object.assign(checks, skipChecks);
+await page.getByRole('button', { name: 'Klaar' }).click();
+await page.waitForSelector('text=Vandaag gedaan ✓', { timeout: 10000 });
+
 console.log('errors:', errors);
 await browser.close();
 const failed = Object.entries(checks).filter(([, v]) => !v).map(([k]) => k);

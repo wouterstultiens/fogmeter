@@ -47,27 +47,27 @@ export function nextFrame() {
 }
 
 /**
- * Instruction screen with a single start button; resolves on tap.
+ * Instruction screen with a single start button; resolves 'start' on tap.
  * autoSeconds > 0: starts by itself after that many seconds (tap to start sooner).
+ * skippable: adds a small "Overslaan" link below the button; resolves 'skip' when tapped.
  */
-export function instructions(title, lines, buttonLabel = 'Start', extra = null, onTap = null, autoSeconds = 0) {
+export function instructions(title, lines, { buttonLabel = 'Start', autoSeconds = 0, skippable = false } = {}) {
   return new Promise((resolve) => {
     let timer = null;
     let done = false;
-    const go = () => {
+    const go = (how) => {
       if (done) return;
       done = true;
       clearInterval(timer);
-      onTap?.();
-      resolve();
+      resolve(how);
     };
-    const btn = h('button.primary', { style: { marginTop: '12px' }, onclick: go }, buttonLabel);
+    const btn = h('button.primary', { style: { marginTop: '12px' }, onclick: () => go('start') }, buttonLabel);
     taskScreen(
       h('div.stack', { style: { maxWidth: '440px', width: '100%' } },
         h('h2', title),
         ...lines.map((l) => h('p.muted', l)),
-        extra,
         btn,
+        skippable ? h('button.link.muted', { onclick: () => go('skip') }, 'Overslaan') : null,
       ),
     );
     if (autoSeconds > 0) {
@@ -75,11 +75,28 @@ export function instructions(title, lines, buttonLabel = 'Start', extra = null, 
       btn.textContent = `${buttonLabel} (${left})`;
       timer = setInterval(() => {
         left -= 1;
-        if (left <= 0) go();
+        if (left <= 0) go('start');
         else btn.textContent = `${buttonLabel} (${left})`;
       }, 1000);
     }
   });
+}
+
+/**
+ * Small "Overslaan" button for a running task (top right). It needs two taps: the first only arms it
+ * for 3 s, so a stray tap during a task never skips it. Reacts on pointerdown, like the tasks do; the
+ * tap is not swallowed, so an accidental hit during the reaction test still counts as a response.
+ */
+export function skipButton(onSkip) {
+  let armed = null;
+  const b = h('button.skip', { type: 'button' }, 'Overslaan');
+  b.addEventListener('pointerdown', () => {
+    if (armed) { clearTimeout(armed); onSkip(); return; }
+    b.textContent = 'Tik nog eens';
+    b.classList.add('armed');
+    armed = setTimeout(() => { armed = null; b.textContent = 'Overslaan'; b.classList.remove('armed'); }, 3000);
+  });
+  return b;
 }
 
 export async function countdown(from = 3) {

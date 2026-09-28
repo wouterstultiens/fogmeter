@@ -1,5 +1,5 @@
 // Symbol Search (after M2C2 / Sliwinski 2018): which of the two bottom pairs appears on top?
-import { h, taskScreen, sleep } from '../ui.js';
+import { h, taskScreen, sleep, skipButton } from '../ui.js';
 import { summarizeSymbols } from '../scoring.js';
 
 export const SYMBOL_TRIALS = 30;
@@ -77,6 +77,7 @@ export function makeTrial(lure) {
   return { top, target, foil, lure, targetLeft };
 }
 
+/** Resolves { trials, summary, motor }, or { skipped: true }. */
 export function runSymbols({ trials: nTrials = SYMBOL_TRIALS } = {}) {
   // Exactly half the trials have a lure, in random order.
   const lures = Array.from({ length: nTrials }, (_, i) => i < nTrials / 2);
@@ -85,7 +86,9 @@ export function runSymbols({ trials: nTrials = SYMBOL_TRIALS } = {}) {
   const bottomRow = h('div.sym-bottom');
   const count = h('span', '');
   const bar = h('div');
-  const screen = taskScreen(h('div.topbar', h('span', 'Welk paar staat bovenaan?'), count), topRow, bottomRow, h('div.progress', bar));
+  let stop = null;
+  const skip = skipButton(() => stop(true));
+  const screen = taskScreen(h('div.topbar', h('span', 'Welk paar staat bovenaan?'), count), skip, topRow, bottomRow, h('div.progress', bar));
 
   const results = [];
   const offsets = [];
@@ -96,16 +99,26 @@ export function runSymbols({ trials: nTrials = SYMBOL_TRIALS } = {}) {
     let onset = 0;
     let current = null;
     let accepting = false;
+    let stopped = false;
 
     const onMissTap = (e) => {
-      if (accepting && !e.target.closest('.option')) misses++;
+      if (accepting && !e.target.closest('.option, .skip')) misses++;
     };
     screen.addEventListener('pointerdown', onMissTap);
 
+    stop = (skipped) => {
+      if (stopped) return;
+      stopped = true;
+      accepting = false;
+      screen.removeEventListener('pointerdown', onMissTap);
+      if (skipped) resolve({ skipped: true });
+      else resolve({ trials: results, summary: summarizeSymbols(results), motor: { offsets, misses } });
+    };
+
     const show = async () => {
+      if (stopped) return;
       if (i >= nTrials) {
-        screen.removeEventListener('pointerdown', onMissTap);
-        resolve({ trials: results, summary: summarizeSymbols(results), motor: { offsets, misses } });
+        stop(false);
         return;
       }
       current = makeTrial(lures[i]);
