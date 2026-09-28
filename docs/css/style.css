@@ -172,11 +172,22 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .banner.practice { border-color: var(--warn); color: var(--warn); }
 pre.code { white-space: pre-wrap; word-break: break-all; font-size: 12px; background: var(--panel-2); padding: 10px; border-radius: 10px; }
 
-/* Say-aloud-and-tap pad */
-.tappad { width: min(80vw, 340px); height: min(42vh, 300px); border-radius: 28px; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 6px; background: var(--panel-2); border: 2px solid var(--line); color: var(--muted); }
-.tappad .tapcount { font: 700 64px/1 ui-monospace, "SF Mono", Menlo, monospace; color: var(--text); }
-.tappad.flash { animation: tapflash .25s ease-out; }
-@keyframes tapflash { from { background: color-mix(in srgb, var(--accent) 35%, var(--panel-2)); } to { background: var(--panel-2); } }
-.checkgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.checkgrid .toggle { min-height: 48px; font-size: 17px; }
+/* Spoken recall: microphone circle lights up when the recogniser hears something */
+.mic { width: 132px; height: 132px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: var(--panel-2); border: 2px solid var(--line); color: var(--muted); }
+.mic.live { border-color: color-mix(in srgb, var(--good) 55%, var(--line)); color: var(--text); }
+.mic.heard { animation: heard .6s ease-out; }
+@keyframes heard { from { background: color-mix(in srgb, var(--good) 30%, var(--panel-2)); } to { background: var(--panel-2); } }
+
+/* Review / session detail */
+.transcript { font-size: 16px; line-height: 1.7; }
+mark { background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--text); border-radius: 5px; padding: 1px 4px; }
+.kv { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; }
+.kv > :last-child { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Raw-score charts and session table */
+.mini { display: flex; flex-direction: column; gap: 4px; padding-top: 6px; border-top: 1px solid var(--line); }
+table.sessions { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+table.sessions th, table.sessions td { padding: 7px 6px 7px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+table.sessions tr.tap { cursor: pointer; }
+table.sessions tr.tap:active { background: var(--panel-2); }

@@ -1,5 +1,6 @@
-// End-to-end smoke test: plays one full session with shortened timings (?e2e) and a fake speech
-// recogniser that returns deliberately messy transcripts (glued words, plurals, an intrusion).
+// End-to-end smoke test: makes a quick note, then plays one full session with shortened timings (?e2e)
+// and a fake speech recogniser that returns deliberately messy transcripts (glued words, plurals, an
+// intrusion), then opens the results and one session's details.
 // Run: npm run serve (in another shell), then: node tests/e2e.mjs
 import { chromium } from 'playwright';
 
@@ -41,13 +42,20 @@ await page.addInitScript(() => {
 let shot = 0;
 const snap = async (name) => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${String(++shot).padStart(2, '0')}-${name}.png` }); };
 const clickText = (t) => page.getByRole('button', { name: t, exact: true }).first().click();
-const tap = async (n) => { for (let i = 0; i < n; i++) { await page.locator('.tappad').click(); await page.waitForTimeout(300); } };
 const say = async (text) => { await page.waitForSelector('.dot.live'); await page.evaluate((t) => window.__emit(t), text); };
 
 const wake = new Date(Date.now() - 20 * 60000);
 await page.goto(`${BASE}?e2e&wake=${encodeURIComponent(stamp(wake))}&steps=8412`);
 await page.waitForSelector('text=Fogmeter');
 await snap('home');
+
+// Quick note (as if made yesterday at work): text + optional rating.
+await page.locator('button', { hasText: '+ Notitie' }).click();
+await page.locator('textarea').fill('blanco moment in overleg');
+await page.locator('.scale.s11 button').nth(6).click();
+await snap('note');
+await clickText('Bewaar');
+await page.waitForSelector('text=1 sinds je laatste sessie');
 
 await clickText('Start (± 6 min)');
 await page.waitForSelector('text=Hoe helder voelt je hoofd nu?');
@@ -63,7 +71,7 @@ const t0 = Date.now();
 while (Date.now() - t0 < 25000) {
   const state = await page.evaluate(() => ({
     word: document.querySelector('.bigword')?.textContent || '',
-    recall: !!document.querySelector('.tappad'),
+    recall: !!document.querySelector('.mic'),
   }));
   if (state.word && state.word !== '+') words.add(state.word);
   if (state.recall) break;
@@ -76,9 +84,11 @@ const list = [...words];
 // First recall: recogniser glues two words together and hears one intrusion.
 await say(`${list[0]}${list[1]}`);
 await say(`${list[2]} banaan`);
-await tap(4);
+await page.waitForTimeout(300);
 await snap('recall');
-if (await page.locator('text=Woordenlijst').count() && await page.locator('text=Controle').count()) throw new Error('list shown too early');
+const recallText = await page.locator('.task').textContent();
+if (recallText.includes('banaan') || recallText.includes(list[3])) throw new Error('transcript or list shown during recall');
+await clickText('Klaar');
 await page.waitForSelector('text=Reactietest (3 min)', { timeout: 15000 });
 
 // PVT: respond whenever the counter is visible.
@@ -114,11 +124,12 @@ await page.waitForSelector('text=Woordenlijst, nog een keer', { timeout: 15000 }
 await clickText('Start');
 await say(`${list[0]}en`);
 await say(list[5]);
-await tap(3);
+// No "Klaar" here: let the timer run out.
 
 // Review: prefilled from the transcripts; add one word the recogniser missed.
 await page.waitForSelector('text=Controle', { timeout: 15000 });
 const prefilled = await page.evaluate(() => [...document.querySelectorAll('.review-grid .toggle')].map((b) => b.classList.contains('selected')));
+const marked = await page.locator('.transcript mark').allTextContents();
 await snap('review');
 await page.locator('.review-grid .toggle').nth(6 * 2 + 1).click(); // row 7, "2e keer"
 await clickText('Opslaan');
@@ -127,19 +138,33 @@ await clickText('Opslaan');
 await page.waitForSelector('text=Gisteren', { timeout: 15000 });
 await page.locator('.scale.s11 button').nth(2).click();
 await clickText('normaal');
-await page.locator('textarea').fill('test: niets bijzonders');
+const notePrefill = await page.locator('textarea').inputValue();
+await page.locator('textarea').fill(`${notePrefill}\ntest: verder niets`);
 await snap('yesterday');
 await clickText('Verder');
 await page.waitForSelector('text=Resultaten');
 await snap('results');
+const rawCharts = await page.locator('.mini svg').count();
+await page.getByRole('heading', { name: 'Ruwe scores' }).scrollIntoViewIfNeeded();
+await snap('results-raw');
 
-const saved = await page.evaluate(() => new Promise((res) => {
+// Session details from the table.
+await page.locator('tr.tap').first().click();
+await page.waitForSelector('text=Beeldverversing');
+const detailText = await page.locator('#app').textContent();
+await snap('detail');
+await clickText('Terug');
+await page.getByRole('heading', { name: 'Ruwe scores' }).waitFor();
+
+const readStore = (name) => page.evaluate((store) => new Promise((res) => {
   const r = indexedDB.open('fogmeter');
   r.onsuccess = () => {
-    const q = r.result.transaction('sessions').objectStore('sessions').getAll();
+    const q = r.result.transaction(store).objectStore(store).getAll();
     q.onsuccess = () => res(q.result);
   };
-}));
+}), name);
+const saved = await readStore('sessions');
+const notes = await readStore('notes');
 const s = saved[saved.length - 1];
 const firstAuto = prefilled.filter((_, i) => i % 2 === 0);
 const secondAuto = prefilled.filter((_, i) => i % 2 === 1);
@@ -148,18 +173,24 @@ const checks = {
   wakeFromShortcut: s.now.wakeSource === 'shortcut',
   minutesSinceWake: s.context.minutesSinceWake >= 19 && s.context.minutesSinceWake <= 25,
   steps: s.context.steps24h === 8412,
+  marked: marked.length === 4 && !marked.some((m) => m.includes('banaan')), // glued pair, word, plural, word
   prefillFirst: firstAuto.filter(Boolean).length === 3 && firstAuto[0] && firstAuto[1] && firstAuto[2],
   prefillSecond: secondAuto.filter(Boolean).length === 2 && secondAuto[0] && secondAuto[5],
   memoryImmediate: s.memory.immediate === 3,
   memoryDelayed: s.memory.delayed === 3,
   reviewEdits: s.memory.reviewEdits === 1,
-  extraTaps: s.memory.extraTapsFirst === 1 && s.memory.extraTapsSecond === 0,
-  taps: s.recall.first.taps.length === 4 && s.recall.second.taps.length === 3,
+  endedEarly: s.recall.first.endedEarly === true && s.recall.second.endedEarly === false,
+  timing: s.recall.first.timing.firstWordMs !== null && s.recall.first.timing.onsets.filter((t) => t !== null).length === 3,
+  timeline: s.recall.second.speech.timeline.length === 2,
   transcriptKept: s.recall.first.speech.transcript.includes('banaan'),
   intrusionSeen: s.memory.auto.extraFirst.includes('banaan'),
   pvtTrials: s.pvt.summary.n >= 1,
   symbolsCorrect: s.symbols.summary.accuracy === 1,
-  yesterday: s.yesterday.dayFog === 2 && s.yesterday.stress === 2 && s.yesterday.note.startsWith('test'),
+  yesterday: s.yesterday.dayFog === 2 && s.yesterday.stress === 2 && s.yesterday.note.endsWith('verder niets'),
+  notePrefilled: /^\d\d:\d\d blanco moment in overleg$/.test(notePrefill) && s.yesterday.noteIds?.length === 1,
+  noteSaved: notes.length === 1 && notes[0].fog === 6 && notes[0].text === 'blanco moment in overleg',
+  rawCharts: rawCharts >= 5,
+  detail: detailText.includes('Reactietest') && detailText.includes('banaan') && detailText.includes('Beeldverversing'),
   motor: s.motor.taps > 0,
 };
 console.log(JSON.stringify({ checks, valid: s.valid, reasons: s.invalidReasons, memory: s.memory, pvt: s.pvt.summary }, null, 1));

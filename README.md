@@ -6,13 +6,19 @@ opened through an iOS Shortcut. Why it measures what it measures: see [DESIGN.md
 **The session:**
 1. Check-in: fog right now, sleep quality, sleep times
 2. Learn a 12-word list (Dutch)
-3. First recall: say the words aloud and tap once per word, while speech recognition listens in the background
+3. First recall: say the words aloud; speech recognition listens (no tapping)
 4. 3-minute reaction-time test (PVT-B)
 5. Symbol Search
 6. Second recall (same as step 3)
-7. Review: both transcripts, with per-word "1st / 2nd time" ticks prefilled from speech recognition. You only fix mistakes.
-   The list is shown only here, at the end.
-8. Three "yesterday" questions + an optional note
+7. Review: both transcripts on top (recognised list words marked), then per-word "1st / 2nd time" ticks prefilled
+   from speech recognition. You only fix mistakes. The list is shown only here, at the end.
+8. Three "yesterday" questions + an optional note (prefilled with any quick notes made since the last session)
+
+**Any time (optional):** "+ Notitie" on the home screen: a short text plus an optional "how clear right now" 0–10.
+The text prefills the next morning's note; the rating is stored separately.
+
+**Results:** raw scores of every session (run-in included) as small charts, a table of all sessions with
+full per-session details, all notes, and (after the run-in) the 7-day trend vs. your own baseline.
 
 ## Setup (one time, ~15 min)
 
@@ -34,8 +40,10 @@ opened through an iOS Shortcut. Why it measures what it measures: see [DESIGN.md
 
 - **On the phone:** sessions are stored in Safari (IndexedDB).
 - **Backup:** after each session, one JSON file per session is uploaded to
-  `fogmeter-data/sessions/YYYY-MM/`. If Safari ever clears its storage, the app restores from there.
-- **Uploaded:** only scores, trial data (reaction times) and your answers. No audio is recorded.
+  `fogmeter-data/sessions/YYYY-MM/`, and each quick note to `fogmeter-data/notes/YYYY-MM/`.
+  Run-in sessions are saved and uploaded like any other; only the practice run is not saved.
+  If Safari ever clears its storage, the app restores from there.
+- **Uploaded:** only scores, trial data (reaction times), recogniser transcripts and your answers. No audio is recorded.
 - **Not in this repo:** this repo is public and contains only app code, never your data.
 
 ## Development

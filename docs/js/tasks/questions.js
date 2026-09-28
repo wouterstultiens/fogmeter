@@ -1,8 +1,8 @@
 // "Now" check-in (before tests), "Yesterday" block (after tests) and the word-list review.
 import { h, render, choiceScale } from '../ui.js';
-import { detectListWords } from '../scoring.js';
+import { detectListWords, markTranscript } from '../scoring.js';
 
-const FOG = Array.from({ length: 11 }, (_, i) => ({ label: String(i), value: i }));
+export const FOG = Array.from({ length: 11 }, (_, i) => ({ label: String(i), value: i }));
 const SLEEP_Q = ['zeer slecht', 'slecht', 'redelijk', 'goed', 'zeer goed'].map((label, i) => ({ label, value: i + 1 }));
 
 /**
@@ -55,16 +55,23 @@ export function checkIn(prefill, { practice = false } = {}) {
 const ACTIVITY = [{ label: 'geen', value: 0 }, { label: 'licht', value: 1 }, { label: 'flink', value: 2 }];
 const STRESS = [{ label: 'laag', value: 1 }, { label: 'normaal', value: 2 }, { label: 'hoog', value: 3 }];
 
-/** steps: number|null. When steps come from the Shortcut the activity question is skipped. */
-export function yesterday({ steps = null } = {}) {
+/**
+ * steps: number|null. When steps come from the Shortcut the activity question is skipped.
+ * notePrefill: { text, ids } from quick notes made since the last session; fills "Iets bijzonders?".
+ */
+export function yesterday({ steps = null, notePrefill = null } = {}) {
   return new Promise((resolve) => {
     const ans = { dayFog: null, dayOff: false, activity: null, stress: null };
     const needActivity = steps == null;
-    const next = h('button.primary', { disabled: true, onclick: () => resolve({ ...ans, note: note.value.trim() }) }, 'Verder');
+    const next = h('button.primary', {
+      disabled: true,
+      onclick: () => resolve({ ...ans, note: note.value.trim(), ...(notePrefill ? { noteIds: notePrefill.ids } : {}) }),
+    }, 'Verder');
     const update = () => {
       next.disabled = (ans.dayFog === null && !ans.dayOff) || ans.stress === null || (needActivity && ans.activity === null);
     };
     const note = h('textarea', { placeholder: 'bv. ziek, laat gegeten, geen thee, slecht geslapen, meditatie overgeslagen, blanco moment op werk…' });
+    if (notePrefill) note.value = notePrefill.text;
 
     const fogScale = choiceScale(FOG, 's11', (v) => { ans.dayFog = v; ans.dayOff = false; off.classList.remove('selected'); update(); });
     const off = h('button', {
@@ -89,7 +96,11 @@ export function yesterday({ steps = null } = {}) {
         ? h('div.card', h('p', 'Beweging'), choiceScale(ACTIVITY, 's3', (v) => { ans.activity = v; update(); }))
         : h('div.card', h('div.row', h('span.grow', 'Stappen (laatste 24 uur)'), h('span.tag.ok', 'via Shortcut'), h('strong', steps.toLocaleString('nl-NL')))),
       h('div.card', h('p', 'Stress / werkdruk'), choiceScale(STRESS, 's3', (v) => { ans.stress = v; update(); })),
-      h('div.card', h('p', 'Iets bijzonders? (optioneel)'), note),
+      h('div.card',
+        h('p', 'Iets bijzonders? (optioneel)'),
+        notePrefill ? h('p.small.muted', 'Al ingevuld met je notities sinds de vorige sessie. Pas aan waar nodig.') : null,
+        note,
+      ),
       next,
     );
   });
@@ -97,8 +108,8 @@ export function yesterday({ steps = null } = {}) {
 
 /**
  * End-of-session review, right after the second recall (the list is never shown before this).
- * Shows both transcripts and one row per list word with "1e / 2e keer" toggles, prefilled from
- * speech recognition. You only fix what it got wrong.
+ * On top: what the app heard, with recognised list words marked. Below: one row per list word with
+ * "1e / 2e keer" toggles, prefilled from speech recognition. You only fix what it got wrong.
  * first/second: recallTask results. Resolves { first: boolean[], second: boolean[], auto, edits }.
  */
 export function review(words, first, second) {
@@ -108,13 +119,7 @@ export function review(words, first, second) {
     const sel = [auto1.hit.slice(), auto2.hit.slice()];
 
     const counters = [h('span.tag', ''), h('span.tag', '')];
-    const paint = () => {
-      [first, second].forEach((r, k) => {
-        const n = sel[k].filter(Boolean).length;
-        counters[k].textContent = `${n} ✓ · ${r.taps.length} getikt`;
-        counters[k].className = n === r.taps.length ? 'tag ok' : 'tag warn';
-      });
-    };
+    const paint = () => sel.forEach((v, k) => { counters[k].textContent = `${k + 1}e keer: ${v.filter(Boolean).length}`; });
     const toggle = (k, i) => {
       const b = h('button.toggle', { type: 'button' }, '');
       const draw = () => { b.textContent = sel[k][i] ? '✓' : '–'; b.classList.toggle('selected', sel[k][i]); };
@@ -125,15 +130,12 @@ export function review(words, first, second) {
 
     const grid = h('div.review-grid', h('span'), h('span.hdr', '1e keer'), h('span.hdr', '2e keer'));
     words.forEach((w, i) => grid.append(h('span', w), toggle(0, i), toggle(1, i)));
-    const heard = (label, r) => h('div.stack', { style: { gap: '4px' } },
-      h('p.small', h('strong', label), ' ', r.speech.fatal ? h('span.muted', '(geen spraakherkenning)') : null),
-      h('p.small.muted', r.speech.transcript || '—'));
 
     render(
       h('h2', 'Controle'),
-      h('p.muted.small', 'Vooringevuld op basis van wat de app hoorde. Tik om te verbeteren. Het aantal ✓ hoort ongeveer gelijk te zijn aan je aantal tikken.'),
-      h('div.card', grid, h('div.row', h('span.grow.small.muted', '1e / 2e keer'), counters[0], counters[1])),
-      h('div.card', h('h3', 'Wat de app hoorde'), heard('1e keer:', first), heard('2e keer:', second)),
+      h('p.muted.small', 'Bovenaan staat wat de app hoorde. De vinkjes eronder zijn daarop al ingevuld. Klopt iets niet met wat je zei? Tik om te verbeteren.'),
+      h('div.card', h('h3', 'Wat de app hoorde'), heardBlock('1e keer', first, words, auto1.hit), heardBlock('2e keer', second, words, auto2.hit)),
+      h('div.card', grid, h('div.row', h('span.grow'), counters[0], counters[1])),
       h('button.primary', {
         onclick: () => resolve({
           first: sel[0],
@@ -145,4 +147,19 @@ export function review(words, first, second) {
     );
     paint();
   });
+}
+
+/** One recall's transcript with list words marked, plus list words heard only in interim guesses. */
+export function heardBlock(label, r, words, hit) {
+  const title = h('p.small', h('strong', `${label}:`));
+  if (r.speech.fatal) {
+    return h('div.stack', { style: { gap: '4px' } }, title, h('p.small.muted', 'Geen spraakherkenning. Vink zelf aan welke woorden je noemde.'));
+  }
+  const parts = markTranscript(r.speech.transcript || '', words);
+  const onlyInterim = words.filter((w, i) => hit[i] && !parts.some((p) => markTranscript(p.text, [w])[0].hit));
+  return h('div.stack', { style: { gap: '4px' } },
+    title,
+    h('p.transcript', parts.length ? parts.flatMap((p, i) => [i ? ' ' : null, p.hit ? h('mark', p.text) : p.text]) : h('span.muted', '(niets gehoord)')),
+    onlyInterim.length ? h('p.small.muted', `Ook gehoord in een tussenversie: ${onlyInterim.join(', ')}`) : null,
+  );
 }

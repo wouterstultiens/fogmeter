@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  tokenize, tokenMatches, detectListWords, phoneticKey, summarizeTaps, summarizePvt, summarizeSymbols,
+  tokenize, tokenMatches, detectListWords, phoneticKey, markTranscript, speechTiming, summarizePvt, summarizeSymbols,
   validity, computeIndices, rolling, RUN_IN,
 } from '../docs/js/scoring.js';
 
@@ -39,12 +39,39 @@ test('detectListWords finds run-together words and words only in interim guesses
   assert.ok(r.extra.includes('zon'));
 });
 
-test('summarizeTaps: count, first word latency, gaps and blanks', () => {
-  const s = summarizeTaps([1500, 3000, 4000, 12000], 30000);
-  assert.equal(s.count, 4);
-  assert.equal(s.firstLatencyMs, 1500);
-  assert.equal(s.medianGapMs, 1500);
-  assert.equal(s.blanks, 2); // 4s→12s gap, and 12s→30s trailing silence
+test('markTranscript marks list words, including glued and plural forms', () => {
+  const parts = markTranscript('Appelfiets eh lampen zon', ['appel', 'fiets', 'lamp']);
+  assert.deepEqual(parts, [
+    { text: 'Appelfiets', hit: true },
+    { text: 'eh', hit: false },
+    { text: 'lampen', hit: true },
+    { text: 'zon', hit: false },
+  ]);
+});
+
+test('speechTiming: first speech, first list word, gaps between new words, blanks', () => {
+  const words = ['appel', 'fiets', 'lamp'];
+  const timeline = [
+    [1200, 'eh'], // speech, but no list word yet
+    [2000, 'eh appel'],
+    [3500, 'eh appel fiets'],
+    [12000, 'lamp'], // new recogniser instance after a long pause
+  ];
+  const t = speechTiming(timeline, words, 30000);
+  assert.equal(t.firstSpeechMs, 1200);
+  assert.equal(t.firstWordMs, 2000);
+  assert.deepEqual(t.onsets, [2000, 3500, 12000]);
+  assert.equal(t.medianGapMs, (1500 + 8500) / 2);
+  assert.equal(t.blanks, 2); // 3.5 s→12 s, and 12 s→30 s trailing silence
+});
+
+test('speechTiming: early end is not a trailing blank; nothing heard gives nulls', () => {
+  assert.equal(speechTiming([[1000, 'appel']], ['appel'], 4000).blanks, 0);
+  assert.equal(speechTiming([[6000, 'appel']], ['appel'], 8000).blanks, 1); // leading silence
+  const none = speechTiming([], ['appel'], 30000);
+  assert.equal(none.firstSpeechMs, null);
+  assert.equal(none.firstWordMs, null);
+  assert.equal(none.blanks, 0);
 });
 
 test('summarizePvt: speed, lapses incl. timeouts, false starts', () => {

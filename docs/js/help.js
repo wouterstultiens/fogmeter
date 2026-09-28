@@ -16,7 +16,12 @@ export function helpView() {
         'Niet storen aan, stil plekje, telefoon altijd op dezelfde manier vast.',
         'Doe de sessie ook in het weekend. Consistentie is belangrijker dan een perfecte dag.',
       ),
-      h('p.small.muted', 'De eerste 14 sessies zijn inwerken (je wordt vanzelf beter). Daarna 28 dagen basislijn: verander dan nog niets. Daarna kun je experimenten doen.'),
+      h('p.small.muted', 'De eerste 14 sessies zijn inwerken (je wordt vanzelf beter). Die worden gewoon bewaard en je ziet ze bij Resultaten → Ruwe scores. Daarna 28 dagen basislijn: verander dan nog niets. Daarna kun je experimenten doen.'),
+    ),
+
+    section('Notities (optioneel, wanneer je wilt)',
+      h('p.small', 'Tik op "+ Notitie" op het startscherm als er iets is: een blanco moment op je werk, hoofdpijn, laat gegeten. Eventueel met een cijfer voor hoe helder je op dat moment bent. Kost ± 10 seconden.'),
+      h('p.small.muted', 'De volgende ochtend staat je tekst al ingevuld bij "Iets bijzonders?". Het cijfer wordt apart bewaard; de ochtendvraag over gisteren blijft zo elke dag dezelfde meting.'),
     ),
 
     section('Eenmalig: betere spraakherkenning',
@@ -74,10 +79,10 @@ export function helpView() {
 
     section('Wat wordt gemeten',
       steps(
-        'Woordenlijst: 12 woorden onthouden, direct en na ± 4 min (geheugen). Je tikt per woord; de app luistert mee en jij controleert aan het eind.',
-        'Reactietest (3 min): aandacht en "wegvallers" (missers ≥ 355 ms).',
+        'Woordenlijst: 12 woorden onthouden, direct en na ± 4 min (geheugen). Je zegt ze hardop; de app luistert en jij controleert aan het eind.',
+        'Reactietest (3 min): aandacht en "wegvallers" (missers ≥ 355 ms). Reactietijden springen in stapjes van ± 17 ms (bv. 284, 301, 317): het scherm ververst 60 keer per seconde. Over de ± 50 tikken per sessie middelt dat uit.',
         'Symbolen: verwerkingssnelheid ("traag hoofd").',
-        'Automatisch: tik-nauwkeurigheid (onhandigheid), tijd sinds wakker worden, hoe snel je eerste woord komt.',
+        'Automatisch: tik-nauwkeurigheid (onhandigheid), tijd sinds wakker worden, en uit de spraakherkenning hoe snel je eerste woord komt en stiltes van meer dan 5 s.',
       ),
       h('p.small.muted', 'Testscores en hoe je je voelt worden apart bijgehouden: ze lopen vaak niet gelijk op, en beide zijn informatief.'),
     ),

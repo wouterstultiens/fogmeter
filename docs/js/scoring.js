@@ -1,24 +1,5 @@
 // Pure scoring functions (no DOM) so they can be unit-tested in Node.
 
-/**
- * Timing of say-aloud-and-tap recall. taps: ms since recall start, one per word said.
- */
-export function summarizeTaps(taps, durationMs = 30000) {
-  const times = taps.slice().sort((a, b) => a - b);
-  const gaps = [];
-  let prevT = 0;
-  for (const t of times) { gaps.push(t - prevT); prevT = t; }
-  const interWord = gaps.slice(1);
-  let blanks = gaps.filter((g) => g > 5000).length;
-  if (durationMs - prevT > 5000 && times.length) blanks += 1; // trailing silence
-  return {
-    count: times.length,
-    firstLatencyMs: times.length ? Math.round(times[0]) : null,
-    medianGapMs: interWord.length ? Math.round(median(interWord)) : null,
-    blanks,
-  };
-}
-
 // ---------- matching speech transcripts against the known word list ----------
 
 const FILLERS = new Set([
@@ -97,6 +78,55 @@ export function detectListWords(texts, words) {
   });
   const extra = tokens.filter((t) => !words.some((w) => tokenMatches(t, w)));
   return { hit, extra };
+}
+
+/**
+ * Splits a transcript into words, marking the ones that count as a list word (for the review screen).
+ * Returns [{ text, hit }] in order; run-together words ("appelfiets") are marked as a whole.
+ */
+export function markTranscript(text, words) {
+  return String(text).split(/\s+/).filter(Boolean).map((chunk) => {
+    const hit = tokenize(chunk).some((t) => words.some((w) => tokenMatches(t, w)))
+      || words.some((w) => { const k = phoneticKey(w); return k.length >= 4 && phoneticKey(chunk).includes(k); });
+    return { text: chunk, hit };
+  });
+}
+
+// ---------- recall timing (from the recogniser's timestamps) ----------
+
+export const BLANK_MS = 5000;
+
+/**
+ * Timing of spoken recall, derived from when the recogniser produced text.
+ * timeline: [[ms since recall start, text]], one entry whenever the recognised text changed.
+ * The recogniser lags speech by roughly half a second to a second; that lag is about the same every
+ * day, so the numbers are comparable between sessions but not exact.
+ * - firstSpeechMs: first recognised speech of any kind
+ * - firstWordMs: first moment a list word was recognised
+ * - medianGapMs: median time between successive newly recognised list words
+ * - blanks: stretches > 5 s without any recognised speech (leading and trailing silence included)
+ * - onsets: per list word, when it was first recognised (null if never)
+ */
+export function speechTiming(timeline, words, durationMs = 30000) {
+  const events = (timeline || []).map(([t, text]) => ({ t: Math.max(0, Math.round(t)), text }))
+    .sort((a, b) => a.t - b.t);
+  const onsets = words.map(() => null);
+  for (const e of events) {
+    detectListWords([e.text], words).hit.forEach((x, i) => { if (x && onsets[i] === null) onsets[i] = e.t; });
+  }
+  const found = onsets.filter((t) => t !== null).sort((a, b) => a - b);
+  const gaps = found.slice(1).map((t, i) => t - found[i]);
+  let blanks = 0;
+  let prev = 0;
+  for (const e of events) { if (e.t - prev > BLANK_MS) blanks++; prev = e.t; }
+  if (events.length && durationMs - prev > BLANK_MS) blanks++;
+  return {
+    firstSpeechMs: events.length ? events[0].t : null,
+    firstWordMs: found.length ? found[0] : null,
+    medianGapMs: gaps.length ? Math.round(median(gaps)) : null,
+    blanks,
+    onsets,
+  };
 }
 
 // ---------- descriptive stats ----------

@@ -1,13 +1,17 @@
-// Minimal IndexedDB store for sessions (keyed by session id).
+// Minimal IndexedDB stores (keyed by id): 'sessions' (one per morning session) and 'notes' (quick notes).
 const DB_NAME = 'fogmeter';
-const STORE = 'sessions';
+const STORES = ['sessions', 'notes'];
 let dbp = null;
 
 function open() {
   if (!dbp) {
     dbp = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: 'id' });
+      const req = indexedDB.open(DB_NAME, 2);
+      req.onupgradeneeded = () => {
+        for (const name of STORES) {
+          if (!req.result.objectStoreNames.contains(name)) req.result.createObjectStore(name, { keyPath: 'id' });
+        }
+      };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
@@ -15,20 +19,25 @@ function open() {
   return dbp;
 }
 
-function tx(mode, fn) {
+function tx(store, mode, fn) {
   return open().then((db) => new Promise((resolve, reject) => {
-    const t = db.transaction(STORE, mode);
-    const out = fn(t.objectStore(STORE));
+    const t = db.transaction(store, mode);
+    const out = fn(t.objectStore(store));
     t.oncomplete = () => resolve(out?.result ?? out);
     t.onerror = () => reject(t.error);
   }));
 }
 
-export const db = {
-  put: (session) => tx('readwrite', (s) => { s.put(session); }),
-  get: (id) => tx('readonly', (s) => s.get(id)),
-  all: () => tx('readonly', (s) => s.getAll()),
-};
+function table(store) {
+  return {
+    put: (row) => tx(store, 'readwrite', (s) => { s.put(row); }),
+    get: (id) => tx(store, 'readonly', (s) => s.get(id)),
+    all: () => tx(store, 'readonly', (s) => s.getAll()),
+  };
+}
+
+export const db = table('sessions');
+export const notesDb = table('notes');
 
 export async function requestPersistence() {
   try { if (navigator.storage?.persist) await navigator.storage.persist(); } catch { /* ignore */ }

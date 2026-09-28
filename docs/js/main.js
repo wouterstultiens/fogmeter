@@ -1,16 +1,17 @@
 import { h, render, instructions, countdown, fmtTime } from './ui.js';
-import { db, requestPersistence } from './db.js';
+import { db, notesDb, requestPersistence } from './db.js';
 import { getConfig, setConfig, APP_VERSION } from './config.js';
 import { syncPending, testConnection, restoreAll } from './sync.js';
 import { unlockTts, ttsVoiceName, primeMic, asrSupported, SpeechListener } from './speech.js';
 import { localDateStr, dayIndex, wordListForDay, practiceList } from './schedule.js';
-import { summarizeTaps, validity, computeIndices, median, RUN_IN } from './scoring.js';
+import { speechTiming, validity, computeIndices, median, RUN_IN } from './scoring.js';
 import { captureFromUrl, currentShortcutData, clearShortcutData } from './shortcut.js';
 import { runPvt } from './tasks/pvt.js';
 import { runSymbols } from './tasks/symbols.js';
 import { encodeList, recallTask } from './tasks/verbal.js';
 import { checkIn, yesterday, review } from './tasks/questions.js';
-import { resultsView } from './results.js';
+import { resultsView, sessionDetail } from './results.js';
+import { noteScreen, pendingNotes } from './notes.js';
 import { helpView } from './help.js';
 
 let syncState = { status: 'idle' };
@@ -24,6 +25,8 @@ const DUR = E2E
 
 async function home() {
   const sessions = await db.all();
+  const lastAt = lastSessionAt(sessions);
+  const openNotes = pendingNotes(await notesDb.all(), lastAt);
   const today = localDateStr();
   const todays = sessions.filter((s) => s.date === today && s.kind !== 'practice');
   const doneValid = todays.some((s) => s.valid && s.kind === 'full');
@@ -52,6 +55,9 @@ async function home() {
         h('button.primary', { onclick: () => start('full', false) }, 'Start (± 6 min)'),
         h('button', { onclick: () => start('short', false) }, 'Korte versie (± 4 min, slechte dag)'),
       ),
+    h('button', { onclick: () => note() }, openNotes
+      ? `+ Notitie (${openNotes.ids.length} sinds je laatste sessie)`
+      : '+ Notitie (blanco moment, iets bijzonders)'),
     h('div.row.wrap',
       h('button.grow', { onclick: () => results() }, 'Resultaten'),
       h('button.grow', { onclick: () => settings() }, 'Instellingen'),
@@ -60,6 +66,18 @@ async function home() {
     h('button.link', { onclick: () => start('full', true) }, 'Oefenronde (wordt niet opgeslagen)'),
     h('p.small.muted', syncLine(cfg)),
   );
+}
+
+// Only valid sessions "use up" notes, so a retake after an invalid session still gets them prefilled.
+function lastSessionAt(sessions) {
+  return sessions.filter((s) => s.kind !== 'practice' && s.valid).map((s) => s.startedAt).sort().pop() || null;
+}
+
+function note() {
+  noteScreen(async (saved) => {
+    await home();
+    if (saved) syncPending().then((r) => { syncState = r; }).catch(() => {});
+  });
 }
 
 function syncLine(cfg) {
@@ -151,7 +169,7 @@ async function start(kind, practice) {
     current = 'encode-instr';
     await intro('Woordenlijst', [
       'Je ziet en hoort 12 woorden. Onthoud er zoveel mogelijk.',
-      'Daarna zeg je ze hardop en tik je één keer per woord. Later in de sessie vraag ik ze nog een keer.',
+      'Daarna zeg je ze hardop, in elke volgorde. Later in de sessie vraag ik ze nog een keer.',
     ]);
     current = 'encode';
     await encodeList(words);
@@ -187,7 +205,7 @@ async function start(kind, practice) {
     s.motor = { symbolMisses: sym.motor.misses };
 
     current = 'delayed-instr';
-    await intro('Woordenlijst, nog een keer', ['Noem opnieuw alle woorden van de lijst van het begin die je nog weet. Zeg ze hardop en tik per woord.']);
+    await intro('Woordenlijst, nog een keer', ['Noem opnieuw alle woorden van de lijst van het begin die je nog weet. Zeg ze hardop.']);
     current = 'delayed';
     const second = await recallTask({ title: 'Noem alle woorden van de lijst', subtitle: 'Woordenlijst · 2e keer', seconds: DUR.recall, hints: words });
 
@@ -195,7 +213,7 @@ async function start(kind, practice) {
     const rev = await review(words, first, second);
     const n1 = rev.first.filter(Boolean).length;
     const n2 = rev.second.filter(Boolean).length;
-    const keep = (r) => ({ taps: r.taps, undone: r.undone, durationMs: r.durationMs, speech: r.speech, timing: summarizeTaps(r.taps, DUR.recall * 1000) });
+    const keep = (r) => ({ durationMs: r.durationMs, endedEarly: r.endedEarly, speech: r.speech, timing: speechTiming(r.speech.timeline, words, r.durationMs) });
     s.recall = { first: keep(first), second: keep(second) };
     s.memory = {
       immediate: n1,
@@ -205,15 +223,13 @@ async function start(kind, practice) {
       recalledSecond: rev.second,
       auto: rev.auto,
       reviewEdits: rev.edits,
-      // Taps beyond the confirmed words ≈ intrusions (words said that weren't on the list).
-      extraTapsFirst: Math.max(0, first.taps.length - n1),
-      extraTapsSecond: Math.max(0, second.taps.length - n2),
     };
   }
 
   current = 'yesterday';
   document.removeEventListener('visibilitychange', onVis);
-  s.yesterday = await yesterday({ steps });
+  const notePrefill = practice ? null : pendingNotes(await notesDb.all(), lastSessionAt(sessions));
+  s.yesterday = await yesterday({ steps, notePrefill });
 
   document.removeEventListener('pointerdown', onTap, true);
   s.motor = { ...(s.motor || {}), medianOffsetPx: motorOffsets.length ? median(motorOffsets) : null, taps: motorOffsets.length };
@@ -223,11 +239,12 @@ async function start(kind, practice) {
   s.invalidReasons = v.reasons;
 
   if (practice) {
-    render(
+    const show = () => render(
       h('div.banner.practice', 'Oefenronde: niet opgeslagen'),
-      ...resultsView([s], s),
+      ...resultsView([s], s, { onOpen: (x) => detail(x, show) }),
       h('button.primary', { onclick: () => home() }, 'Terug'),
     );
+    show();
     return;
   }
 
@@ -241,9 +258,21 @@ async function start(kind, practice) {
 
 async function results(highlight = null) {
   const sessions = (await db.all()).filter((s) => s.kind !== 'practice');
+  const notes = await notesDb.all();
+  const onOpen = (s) => {
+    const y = window.scrollY;
+    detail(s, async () => { await results(highlight); window.scrollTo(0, y); });
+  };
   render(
     h('div.row', h('h1.grow', 'Resultaten'), h('button', { onclick: () => home() }, 'Klaar')),
-    ...resultsView(sessions, highlight),
+    ...resultsView(sessions, highlight, { notes, onOpen }),
+  );
+}
+
+function detail(s, back) {
+  render(
+    h('div.row', h('h1.grow', 'Sessie'), h('button', { onclick: () => back() }, 'Terug')),
+    ...sessionDetail(s),
   );
 }
 
@@ -273,7 +302,7 @@ function settings() {
       h('h3', 'Spraakherkenning'),
       h('p.small.muted', asrSupported()
         ? 'Beschikbaar. Tijdens het opnoemen luistert de app mee; aan het eind controleer je wat hij hoorde.'
-        : 'Niet beschikbaar in deze browser: alleen je tikken tellen, en je vinkt aan het eind zelf aan.'),
+        : 'Niet beschikbaar in deze browser: je vinkt aan het eind zelf aan welke woorden je noemde.'),
       act('Microfoon testen (5 s)', micTest),
     ),
     h('div.card',
@@ -312,12 +341,14 @@ async function micTest() {
 
 async function exportAll() {
   const sessions = await db.all();
-  const blob = new Blob([JSON.stringify(sessions, null, 1)], { type: 'application/json' });
+  const notes = await notesDb.all();
+  const data = { exportedAt: new Date().toISOString(), appVersion: APP_VERSION, sessions, notes };
+  const blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
   const a = h('a', { href: URL.createObjectURL(blob), download: `fogmeter-${localDateStr()}.json` });
   document.body.append(a);
   a.click();
   a.remove();
-  return `${sessions.length} sessies geëxporteerd.`;
+  return `${sessions.length} sessies en ${notes.length} notities geëxporteerd.`;
 }
 
 // ---------------- boot ----------------

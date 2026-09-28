@@ -1,8 +1,35 @@
-# Fogmeter: daily cognitive benchmark, design v0.4 (v1 built)
+# Fogmeter: daily cognitive benchmark, design v0.5 (v1.1 built)
+
+> **v0.5 changes (app 1.1.0, after the first sessions):**
+> - **Recall is speech only; no tapping.** Saying and tapping at the same time was double work and distracting.
+>   - The recall screen shows only a timer, a microphone circle that lights up when speech is recognised, and
+>     "Klaar". No text or count, which would reveal which words count.
+>   - Timing now comes from the recogniser's timestamps (a timeline of every change in recognised text):
+>     first speech, first list word, median gap between newly recognised list words, and silences > 5 s
+>     (`speechTiming` in `scoring.js`). The recogniser lags speech by roughly 0.5–1 s; the lag is about
+>     constant, so values compare across days but are not exact.
+>   - Lost: the tap count as a cross-check, and "extra taps" as an intrusion estimate. The raw transcripts
+>     and every interim/alternative guess are still stored, so intrusions can be coded later.
+>   - The review shows both transcripts **on top**, with recognised list words marked, and list words found
+>     only in interim guesses listed. The prefilled ticks follow below.
+>   - Risk: a word the recogniser never heard must be remembered at review time. `memory.reviewEdits`
+>     tracks how often ticks are corrected.
+> - **Run-in data is fully visible.** Run-in sessions were always saved and backed up; now the results screen
+>   shows raw scores for every session as small charts (run-in shaded), a table of all sessions, and a
+>   full detail view per session. The z-scored week trend still needs the baseline.
+> - **Optional quick notes, no evening session.** A second fixed daily moment would cost adherence and make the
+>   "daytime fog yesterday" item a mix of evening and morning ratings. Instead, "+ Notitie" can be used any
+>   time: text + optional 0–10 "how clear right now". Texts prefill the next morning's "anything unusual?"
+>   field; ratings are stored separately (`notes` store, `notes/` in the backup) as extra momentary data.
+>   The morning "yesterday" block stays unchanged, so it remains the same measure every day.
+> - **PVT reaction times come in ~16.7 ms steps** (e.g. 284, 301, 317 ms). Safari on iPhone renders at 60 Hz
+>   and both the stimulus onset and the touch timestamp land on frames. The per-trial error (up to ~±8 ms) is
+>   random and averages to ~1 ms over ~50 trials; the 355 ms lapse threshold effectively becomes 367 ms
+>   (22 frames), the same every day. Left unchanged on purpose: changing the method would break comparability.
 
 > **v0.4 changes (after first use on the iPhone):**
 > - Safari's Dutch speech recognition glued words together, missed words and mis-transcribed them.
->   Recall is now **say aloud + tap once per word**, with speech recognition listening in the background:
+>   Recall became **say aloud + tap once per word** (tapping dropped again in v0.5), with speech recognition listening in the background:
 >   - Taps give a reliable count and timing (first word, gaps, blanks).
 >   - The transcripts are matched against the known 12-word list. The matching handles run-together
 >     words, plurals and diminutives, and Dutch sound-alikes. It also uses every interim guess and
@@ -38,10 +65,10 @@
 | # | Step | Time | What it measures |
 |---|------|------|------------------|
 | 1 | **Now**: 3 taps | ~15 s | Fog right now · sleep quality · bedtime/wake time (prefilled, just confirm) |
-| 2 | **Word list**: learn 12 Dutch words, say them back + tap per word | ~50 s | Verbal memory: "forgot the instructions" |
+| 2 | **Word list**: learn 12 Dutch words, say them back aloud | ~50 s | Verbal memory: "forgot the instructions" |
 | 3 | **Reaction test (PVT-B)**: tap when the counter starts | 3:00 | Attention lapses and speed: the most sensitive test for sleep loss and fatigue |
 | 4 | **Symbol Search** | ~60 s | Processing speed: "my mind feels slow" |
-| 5 | **Word list: second recall** (say + tap) | ~30 s | Remembering after ~4 min of other work |
+| 5 | **Word list: second recall** (spoken) | ~30 s | Remembering after ~4 min of other work |
 | 6 | **Review**: check what speech recognition heard | ~15 s | Confirms which words were recalled, 1st and 2nd time |
 | 7 | **Yesterday**: 3 taps + optional free-text note | ~15 s | Daytime fog yesterday · activity · stress · anything unusual |
 | — | *Automatic*: tap accuracy, time since waking, device checks | 0 s | Clumsiness, sleep inertia, data quality |

@@ -23,6 +23,7 @@ export class SpeechListener {
     this.onText = onText;
     this.latest = []; // latest full transcript per recogniser instance
     this.seen = new Set(); // every transcript/alternative string seen
+    this.timeline = []; // [performance.now(), text] whenever an instance's text changes (for timing)
     this.errors = [];
     this.fatal = null;
     this.running = false;
@@ -61,8 +62,11 @@ export class SpeechListener {
         text += ' ' + res[0].transcript;
         for (let a = 0; a < res.length; a++) if (res[a]?.transcript) this.seen.add(res[a].transcript.trim());
       }
-      this.latest[slot] = text.trim();
-      this.seen.add(text.trim());
+      text = text.trim();
+      const key = text.toLowerCase().replace(/[^\p{L}\s]/gu, '');
+      if (key && key !== this.latest[slot].toLowerCase().replace(/[^\p{L}\s]/gu, '')) this.timeline.push([performance.now(), text]);
+      this.latest[slot] = text;
+      this.seen.add(text);
       this.onText?.(this.transcript());
     };
     rec.onerror = (e) => {
@@ -99,7 +103,14 @@ export class SpeechListener {
     await new Promise((r) => setTimeout(r, 1000));
     try { rec?.abort(); } catch { /* ignore */ }
     this.onState?.('off');
-    return { transcript: this.transcript(), texts: this.allTexts(), errors: [...new Set(this.errors)], fatal: this.fatal, restarts: this.restarts };
+    return {
+      transcript: this.transcript(),
+      texts: this.allTexts(),
+      timeline: this.timeline.slice(),
+      errors: [...new Set(this.errors)],
+      fatal: this.fatal,
+      restarts: this.restarts,
+    };
   }
 }
 

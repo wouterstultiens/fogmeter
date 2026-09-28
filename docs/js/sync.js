@@ -1,6 +1,6 @@
-// Backup of sessions to a private GitHub repo via the contents API.
+// Backup of sessions and quick notes to a private GitHub repo via the contents API.
 import { getConfig } from './config.js';
-import { db } from './db.js';
+import { db, notesDb } from './db.js';
 
 const API = 'https://api.github.com';
 
@@ -38,19 +38,25 @@ async function putFile(cfg, path, content, message) {
   if (!res.ok) throw new Error(`GitHub ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
 
-/** Uploads all sessions not yet synced. Returns {status:'off'|'ok'|'error', count, error}. */
+const KINDS = [
+  { store: db, dir: 'sessions', label: 'session' },
+  { store: notesDb, dir: 'notes', label: 'note' },
+];
+
+/** Uploads all sessions and notes not yet synced. Returns {status:'off'|'ok'|'error', count, error}. */
 export async function syncPending() {
   const cfg = getConfig();
   if (!cfg.token || !cfg.repo) return { status: 'off', count: 0 };
-  const pending = (await db.all()).filter((s) => !s.synced);
   let count = 0;
   try {
-    for (const s of pending) {
-      const copy = { ...s };
-      delete copy.synced;
-      await putFile(cfg, `sessions/${s.date.slice(0, 7)}/${s.id}.json`, JSON.stringify(copy, null, 1), `session ${s.id}`);
-      await db.put({ ...s, synced: true });
-      count++;
+    for (const { store, dir, label } of KINDS) {
+      for (const row of (await store.all()).filter((x) => !x.synced)) {
+        const copy = { ...row };
+        delete copy.synced;
+        await putFile(cfg, `${dir}/${row.date.slice(0, 7)}/${row.id}.json`, JSON.stringify(copy, null, 1), `${label} ${row.id}`);
+        await store.put({ ...row, synced: true });
+        count++;
+      }
     }
     return { status: 'ok', count };
   } catch (e) {
@@ -68,22 +74,23 @@ export async function testConnection() {
   return repo.full_name;
 }
 
-/** Downloads every session from the repo into the local database (e.g. after Safari cleared storage). */
+/** Downloads every session and note from the repo into the local database (e.g. after Safari cleared storage). */
 export async function restoreAll() {
   const cfg = getConfig();
   const tree = await fetch(`${API}/repos/${cfg.repo}/git/trees/HEAD?recursive=1`, { headers: headers(cfg.token), cache: 'no-store' });
   if (!tree.ok) throw new Error(`GitHub ${tree.status}`);
-  const files = (await tree.json()).tree.filter((f) => f.type === 'blob' && /^sessions\/.*\.json$/.test(f.path));
-  const have = new Set((await db.all()).map((s) => s.id));
+  const files = (await tree.json()).tree.filter((f) => f.type === 'blob');
   let n = 0;
-  for (const f of files) {
-    const id = f.path.split('/').pop().replace('.json', '');
-    if (have.has(id)) continue;
-    const res = await fetch(`${API}/repos/${cfg.repo}/git/blobs/${f.sha}`, { headers: headers(cfg.token) });
-    if (!res.ok) continue;
-    const s = JSON.parse(b64decode((await res.json()).content));
-    await db.put({ ...s, synced: true });
-    n++;
+  for (const { store, dir } of KINDS) {
+    const have = new Set((await store.all()).map((x) => x.id));
+    for (const f of files.filter((x) => x.path.startsWith(`${dir}/`) && x.path.endsWith('.json'))) {
+      const id = f.path.split('/').pop().replace('.json', '');
+      if (have.has(id)) continue;
+      const res = await fetch(`${API}/repos/${cfg.repo}/git/blobs/${f.sha}`, { headers: headers(cfg.token) });
+      if (!res.ok) continue;
+      await store.put({ ...JSON.parse(b64decode((await res.json()).content)), synced: true });
+      if (dir === 'sessions') n++;
+    }
   }
   return n;
 }
