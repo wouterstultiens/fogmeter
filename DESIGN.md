@@ -1,4 +1,4 @@
-# Fogmeter: daily cognitive benchmark, design v0.2
+# Fogmeter: daily cognitive benchmark, design v0.3
 
 > Status: **draft for approval**. There is no app code yet.
 >
@@ -10,6 +10,11 @@
 > - The evening log is gone; a short "yesterday" block is folded into the morning session.
 > - Weekly and fortnightly questionnaires are dropped.
 > - A v1-first scope. Guiding principle: **consistency beats perfection**.
+>
+> **v0.3 changes:**
+> - "Anything unusual?" is a single free-text field, with no buttons.
+> - The one-time intake questionnaires are removed.
+> - How sleep and wake times are recorded is spelled out (§3.1).
 
 ---
 
@@ -25,7 +30,7 @@
 | 4 | **Symbol Search** | ~60 s | Processing speed: "my mind feels slow" |
 | 5 | **Word fluency**: say as many words as you can for 60 s | ~65 s | Word retrieval: "going blank in meetings" |
 | 6 | **Word list: delayed recall** | ~30 s | Remembering after ~5 min of other work |
-| 7 | **Yesterday**: 3 taps + "anything unusual?" chips | ~15 s | Daytime fog yesterday · activity · stress · exceptions |
+| 7 | **Yesterday**: 3 taps + optional free-text note | ~15 s | Daytime fog yesterday · activity · stress · anything unusual |
 | — | *Automatic*: tap accuracy, time since waking, device checks | 0 s | Clumsiness, sleep inertia, data quality |
 
 **Outputs:**
@@ -97,8 +102,22 @@ performance doesn't colour your rating. "Yesterday" questions come *after*.
 - **Sleep quality** (Consensus Sleep Diary item): zeer slecht / slecht / redelijk / goed / zeer goed.
 - **Sleep times**: *lights out* and *woke up*, both **prefilled with yesterday's values**.
   Usually just tap "klopt" ("correct"); adjust only if different.
-  - With a fixed alarm, most sleep variation comes from bedtime, so this is the one number worth confirming.
-  - This gives time in bed and **minutes since waking** (sleep-inertia covariate).
+  - **v1 records them by asking you.** They are your own estimate, not a measurement.
+    - Without a wearable, nothing measures your sleep.
+    - A web app can't read the iPhone Health app.
+    - The prefill makes it one tap on a normal day.
+  - **Wake time** is the easy one: with a fixed alarm it's almost always the alarm time.
+    You'd only change it on days you woke earlier or slept in.
+  - **Lights out** is the number that varies, and the one worth being honest about. Round to the nearest
+    15 min; a rough but consistent estimate is enough to see the effect of short vs. long nights.
+  - The app itself logs the **session start time** automatically. Together with the wake time, that gives
+    **minutes since waking** (sleep-inertia covariate) and time in bed.
+  - **Later option (automatic, still free)**:
+    - The iPhone can estimate "time in bed" from when you stop and start using the phone, via the Health app's
+      sleep schedule and its "track time in bed with iPhone" option, where your iOS version offers it.
+    - An iOS Shortcut could also stamp the moment you stop your alarm.
+    - A Shortcut can hand both to the app when you open it.
+    - This is less accurate than it sounds (lying awake without the phone counts as sleep), so it stays out of v1.
 - **Dropped from v0.1**:
   - The sleepiness scale (KSS) is redundant with the fog slider plus the PVT.
   - Mood is not needed for your goals, and a rough proxy comes from "stress yesterday".
@@ -153,14 +172,14 @@ performance doesn't colour your rating. "Yesterday" questions come *after*.
 - **Primary**: immediate + delayed.
 
 ### 3.7 Yesterday (~15 s, after the tests)
-All items have a default, so a "normal" day takes three taps.
+All items have a default, so a "normal" day takes three taps and an empty note.
 
 | Item | Options | Why |
 |---|---|---|
 | **Daytime fog yesterday** | 0–10 slider, or "vrije dag" (day off) | **The most important one.** Checks whether the morning test predicts your actual workday. If it doesn't, the benchmark needs adjusting. |
 | **Physical activity yesterday** | geen / licht / flink (none / light / vigorous) | Exercise is a common, plausible fog lever; you have no wearable to measure it |
 | **Stress/workload yesterday** | laag / normaal / hoog (low / normal / high) | Stress drives subjective fog and poor sleep. Without it, stressful weeks look like "the intervention failed". |
-| **Anything unusual?** | chips, default none: *ziek* (sick) · *laat/zwaar gegeten* (late/heavy meal) · *geen thee* (no tea) · *extra cafeïne* (extra caffeine) · *alcohol* · *dutje* (nap) · *medicijn* (medication) · *slecht geslapen/vaak wakker* (slept badly / woke often) · *meditatie overgeslagen* (skipped meditation) · *moment van blanco/vergeten* (a blank or forgetting moment) · *iets anders* (something else, free text) | **Log exceptions, not constants.** Your caffeine (0–1 tea) and alcohol (none) are near-constant, so they only need a tap when they deviate. |
+| **Anything unusual?** | Free-text field, optional, empty by default. Placeholder hint: "bv. ziek, laat gegeten, geen thee, slecht geslapen, meditatie overgeslagen, blanco moment op werk…" ("e.g. sick, ate late, no tea, slept badly, skipped meditation, went blank at work…") | **Log exceptions, not constants.** Your tea (0–1) and alcohol (none) are near-constant, so you only write something when a day deviates. At analysis time the notes are coded into categories (sick, late meal, …), so nothing has to be decided up front. |
 
 **Why the morning works instead of an evening log:**
 - Recall of *yesterday* the next morning is fine for these items, because they are coarse and salient.
@@ -186,27 +205,18 @@ All items have a default, so a "normal" day takes three taps.
 | Grid/Dot memory, Color Shapes | Overlaps the word list; kept as a **swap-in** if fluency turns out too noisy |
 | Simple/choice RT, Go/No-Go | Same factor as the PVT |
 | Reasoning, emotion recognition, risk tasks | Barely affected by sleep/fatigue; long practice curves |
-| Prospective-memory test | Too few events per day to be reliable; the "blank/forgetting moment" chip covers real life |
+| Prospective-memory test | Too few events per day to be reliable; real-life blanks can be noted in the free-text field |
 | Dedicated tapping/motor test | Weak sensitivity, mediocre reliability; tap precision is captured for free |
 | Evening log | Replaced by the "Yesterday" block (§3.7) |
-| Weekly PROMIS / fortnightly Brain Fog Scale | See §5 |
+| Weekly/fortnightly questionnaires, one-time intake | See §5 |
 
 ---
 
-## 5. Questionnaires: only once, not weekly
+## 5. Questionnaires: none
 
-**Weekly/fortnightly questionnaires are dropped. They aren't needed.** They measure "fog over the past
-1–2 weeks", which the daily fog sliders already give you, averaged, with more precision. They'd only add
-comparability with published studies, which doesn't serve your goal.
-
-**One-time, at the start (~5 min, optional repeat every ~3 months or before a doctor visit):**
-- **Brain Fog Scale** (Debowska 2024, 23 items): describes *what kind* of fog you have (mental fatigue vs.
-  cognitive acuity vs. confusion). It's a validated snapshot you can compare against later.
-- **PHQ-9** (depression) + **GAD-7** (anxiety): these are among the most common drivers of brain fog, and
-  worth knowing before attributing fog to anything else.
-- **STOP-Bang** (sleep apnea screen): 8 yes/no items. Apnea is a common, very treatable, often unnoticed cause.
-
-The app shows these as an optional one-off "Intake", with a Dutch validated version where available.
+**No weekly, fortnightly or one-time questionnaires.**
+- The daily fog sliders, averaged over a week, already capture "fog over the past 1–2 weeks", and more precisely.
+- The screening questionnaires (depression, anxiety, sleep apnea) are better handled by a doctor anyway; see §9.
 
 ---
 
@@ -214,7 +224,7 @@ The app shows these as an optional one-off "Intake", with a Dutch validated vers
 
 1. **Validity**:
    - A session is **invalid** if interrupted, PVT false starts > 10%, or Symbol Search accuracy < 75%.
-   - A session is **flagged** (kept, marked) for skipped meditation or Low Power Mode.
+   - A session is **flagged** (kept, marked) for Low Power Mode, or when the note mentions skipped meditation.
    - A retake is allowed only after an invalid session.
 2. **Personal z-scores**: against the post-run-in baseline, with robust statistics
    (median/MAD), winsorised at ±3, signed so higher = better.
@@ -315,7 +325,7 @@ An app shows *that* and *when* you're foggy, not *why*. Worth ruling out:
   - new headaches
   - weight loss
 
-Bringing 4–6 weeks of app data plus the intake questionnaires to that appointment is genuinely useful.
+Bringing 4–6 weeks of app data to that appointment is genuinely useful.
 
 ---
 
@@ -373,12 +383,11 @@ Bringing 4–6 weeks of app data plus the intake questionnaires to that appointm
 - Validity checks
 - Local storage + GitHub backup
 - Simple 7-day chart
-- One-time intake
 
 ### Later (only if v1 is used consistently)
 - Day-by-day randomised experiment scheduler
 - In-app statistics
-- iOS Shortcut launcher
+- iOS Shortcut launcher, which could also pass automatic wake time (alarm stopped) and iPhone time-in-bed
 - Automatic step count from Apple Health via a Shortcut (the iPhone counts steps without a wearable), which would replace the activity question
 - Swap-in Grid Memory
 
@@ -388,7 +397,7 @@ Bringing 4–6 weeks of app data plus the intake questionnaires to that appointm
 
 1. **Backup**: is a private GitHub repo for your data OK? It's free and automatic, and lets me analyse it later.
    The alternative is manual export (share to iCloud Drive), which is more friction and easier to forget.
-2. **Approve v0.2?** If yes, next step is the build, starting with a quick prototype on your phone to verify that
+2. **Approve v0.3?** If yes, next step is the build, starting with a quick prototype on your phone to verify that
    Dutch speech recognition works in home-screen mode (that decides the speech-vs-typing fallback).
 
 ---
