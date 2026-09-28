@@ -1,20 +1,21 @@
 // "Now" check-in (before tests), "Yesterday" block (after tests) and the word-list review.
-import { h, render, choiceScale } from '../ui.js';
+import { h, render, choiceScale, slider } from '../ui.js';
 import { detectListWords, markTranscript } from '../scoring.js';
 
-export const FOG = Array.from({ length: 11 }, (_, i) => ({ label: String(i), value: i }));
+/** 0–10 "how clear" slider, the same everywhere it is asked. extra: element at the end of its row. */
+export const claritySlider = (onPick, extra = null) => slider(onPick, { anchors: ['heel mistig', 'heel helder'], extra });
 const SLEEP_Q = ['zeer slecht', 'slecht', 'redelijk', 'goed', 'zeer goed'].map((label, i) => ({ label, value: i + 1 }));
 
 /**
  * prefill: { bed:'HH:MM', wake:'HH:MM', bedSource, wakeSource } (source: 'shortcut' | 'vorige keer' | 'standaard')
- * Resolves { fog, sleepQuality, bedTime, wakeTime, bedSource, wakeSource }.
+ * Resolves { clarity, sleepQuality, bedTime, wakeTime, bedSource, wakeSource }.
  * "Overslaan" resolves the same, with null for unanswered questions and skipped: true.
  */
 export function checkIn(prefill, { practice = false } = {}) {
   return new Promise((resolve) => {
-    const ans = { fog: null, sleepQuality: null };
+    const ans = { clarity: null, sleepQuality: null };
     const next = h('button.primary', { disabled: true, onclick: () => submit() }, 'Verder');
-    const update = () => { next.disabled = ans.fog === null || ans.sleepQuality === null; };
+    const update = () => { next.disabled = ans.clarity === null || ans.sleepQuality === null; };
 
     const bed = h('input', { type: 'time', value: prefill.bed });
     const wake = h('input', { type: 'time', value: prefill.wake });
@@ -25,8 +26,7 @@ export function checkIn(prefill, { practice = false } = {}) {
       h('h2', 'Nu'),
       h('div.card',
         h('p', 'Hoe helder voelt je hoofd nu?'),
-        choiceScale(FOG, 's11', (v) => { ans.fog = v; update(); }),
-        h('div.anchors', h('span', 'helemaal helder'), h('span', 'extreem mistig')),
+        claritySlider((v) => { ans.clarity = v; update(); }),
       ),
       h('div.card',
         h('p', 'Hoe heb je geslapen?'),
@@ -36,7 +36,6 @@ export function checkIn(prefill, { practice = false } = {}) {
         h('p', 'Slaaptijden'),
         h('div.row', h('span.grow', 'Lichten uit'), srcTag(prefill.bedSource), bed),
         h('div.row', h('span.grow', 'Wakker'), srcTag(prefill.wakeSource), wake),
-        h('p.small.muted', 'Klopt het? Dan hoef je niets te doen.'),
       ),
       next,
       h('button.link.muted', { onclick: () => submit(true) }, 'Overslaan'),
@@ -59,13 +58,14 @@ const ACTIVITY = [{ label: 'geen', value: 0 }, { label: 'licht', value: 1 }, { l
 const STRESS = [{ label: 'laag', value: 1 }, { label: 'normaal', value: 2 }, { label: 'hoog', value: 3 }];
 
 /**
- * steps: number|null. When steps come from the Shortcut the activity question is skipped.
- * notePrefill: { text, ids } from quick notes made since the last session; fills "Iets bijzonders?".
+ * steps: number|null. When steps come from the Shortcut the activity question is left out.
+ * notePrefill: { text, ids } from quick notes made since the last session; fills the note.
+ * "n.v.t." (dayNa) answers the clarity question without a number.
  * "Overslaan" resolves with what was filled in so far and skipped: true.
  */
 export function yesterday({ steps = null, notePrefill = null } = {}) {
   return new Promise((resolve) => {
-    const ans = { dayFog: null, dayOff: false, activity: null, stress: null };
+    const ans = { dayClarity: null, dayNa: false, activity: null, stress: null };
     const needActivity = steps == null;
     const submit = (skipped = false) => resolve({
       ...ans,
@@ -75,39 +75,28 @@ export function yesterday({ steps = null, notePrefill = null } = {}) {
     });
     const next = h('button.primary', { disabled: true, onclick: () => submit() }, 'Verder');
     const update = () => {
-      next.disabled = (ans.dayFog === null && !ans.dayOff) || ans.stress === null || (needActivity && ans.activity === null);
+      next.disabled = (ans.dayClarity === null && !ans.dayNa) || ans.stress === null || (needActivity && ans.activity === null);
     };
-    const note = h('textarea', { placeholder: 'bv. ziek, laat gegeten, geen thee, slecht geslapen, meditatie overgeslagen, blanco moment op werk…' });
+    const note = h('textarea');
     if (notePrefill) note.value = notePrefill.text;
 
-    const fogScale = choiceScale(FOG, 's11', (v) => { ans.dayFog = v; ans.dayOff = false; off.classList.remove('selected'); update(); });
-    const off = h('button', {
+    const na = h('button', {
       type: 'button',
       onclick: () => {
-        ans.dayOff = !ans.dayOff;
-        off.classList.toggle('selected', ans.dayOff);
-        if (ans.dayOff) { ans.dayFog = null; fogScale.querySelectorAll('button').forEach((b) => b.classList.remove('selected')); }
+        ans.dayNa = !ans.dayNa;
+        na.classList.toggle('selected', ans.dayNa);
+        if (ans.dayNa) { ans.dayClarity = null; clarity.set(null); }
         update();
       },
-    }, 'Vrije dag');
+    }, 'n.v.t.');
+    const clarity = claritySlider((v) => { ans.dayClarity = v; ans.dayNa = false; na.classList.remove('selected'); update(); }, na);
 
     render(
       h('h2', 'Gisteren'),
-      h('div.card',
-        h('p', 'Hoe helder was je hoofd overdag (op je werk)?'),
-        fogScale,
-        h('div.anchors', h('span', 'helemaal helder'), h('span', 'extreem mistig')),
-        h('div.row', off),
-      ),
-      needActivity
-        ? h('div.card', h('p', 'Beweging'), choiceScale(ACTIVITY, 's3', (v) => { ans.activity = v; update(); }))
-        : h('div.card', h('div.row', h('span.grow', 'Stappen (laatste 24 uur)'), h('span.tag.ok', 'via Shortcut'), h('strong', steps.toLocaleString('nl-NL')))),
+      h('div.card', h('p', 'Hoe helder was je hoofd?'), clarity),
+      needActivity ? h('div.card', h('p', 'Beweging'), choiceScale(ACTIVITY, 's3', (v) => { ans.activity = v; update(); })) : null,
       h('div.card', h('p', 'Stress / werkdruk'), choiceScale(STRESS, 's3', (v) => { ans.stress = v; update(); })),
-      h('div.card',
-        h('p', 'Iets bijzonders? (optioneel)'),
-        notePrefill ? h('p.small.muted', 'Al ingevuld met je notities sinds de vorige sessie. Pas aan waar nodig.') : null,
-        note,
-      ),
+      h('div.card', h('p', 'Notitie'), note),
       next,
       h('button.link.muted', { onclick: () => submit(true) }, 'Overslaan'),
     );
@@ -143,7 +132,7 @@ export function review(words, first, second) {
 
     render(
       h('h2', 'Controle'),
-      h('p.muted.small', 'Bovenaan staat wat de app hoorde. De vinkjes eronder zijn daarop al ingevuld. Klopt iets niet met wat je zei? Tik om te verbeteren.'),
+      h('p.muted.small', 'Klopt een vinkje niet? Tik om te verbeteren.'),
       h('div.card', h('h3', 'Wat de app hoorde'), ...recalls.map((r, k) => heardBlock(`${k + 1}e keer`, r, words, autos[k].hit))),
       h('div.card', grid, h('div.row', h('span.grow'), ...counters)),
       h('button.primary', {

@@ -4,7 +4,7 @@ import { getConfig, setConfig, APP_VERSION } from './config.js';
 import { syncPending, testConnection, restoreAll } from './sync.js';
 import { unlockTts, ttsVoiceName, primeMic, asrSupported, SpeechListener } from './speech.js';
 import { localDateStr, dayIndex, wordListForDay, practiceList } from './schedule.js';
-import { speechTiming, validity, computeIndices, median, RUN_IN } from './scoring.js';
+import { speechTiming, validity, median } from './scoring.js';
 import { captureFromUrl, currentShortcutData, clearShortcutData } from './shortcut.js';
 import { runPvt } from './tasks/pvt.js';
 import { runSymbols } from './tasks/symbols.js';
@@ -25,46 +25,27 @@ const DUR = E2E
 
 async function home() {
   const sessions = await db.all();
-  const lastAt = lastSessionAt(sessions);
-  const openNotes = pendingNotes(await notesDb.all(), lastAt);
   const today = localDateStr();
   const todays = sessions.filter((s) => s.date === today && s.kind !== 'practice');
   const doneValid = todays.some((s) => s.valid && s.kind === 'full');
-  const ix = computeIndices(sessions);
-  const sc = currentShortcutData();
-  const cfg = getConfig();
-
-  const phase = ix.phase === 'runin'
-    ? `Inwerkperiode · sessie ${ix.fullCount + (doneValid ? 0 : 1)} van ${RUN_IN}`
-    : ix.phase === 'baseline' ? `Basislijn · dag ${ix.baselineCount} van 28` : 'Meten';
-
   const lastInvalid = todays.length && !doneValid ? todays[todays.length - 1] : null;
+  const backup = backupWarning(getConfig());
 
   render(
-    h('div.row', h('h1.grow', 'Fogmeter'), h('span.tag', phase)),
-    h('p.muted', new Date().toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })),
-    sc.raw
-      ? h('div.banner', `Shortcut: ${sc.wake ? 'wakker ' + fmtTime(sc.wake) : 'geen wektijd'}${sc.steps != null ? ` · ${sc.steps.toLocaleString('nl-NL')} stappen` : ''}`)
-      : null,
+    h('h1', 'Fogmeter'),
     doneValid
-      ? h('div.card', h('h2', 'Vandaag gedaan ✓'), h('p.muted', 'Tot morgen. Consistentie is alles.'),
-        h('button', { onclick: () => results() }, 'Bekijk resultaat'))
-      : h('div.card',
+      ? h('div.card.center', h('h2', 'Vandaag gedaan ✓'))
+      : [
         lastInvalid ? h('p.small', { style: { color: 'var(--warn)' } }, `Eerdere poging vandaag ongeldig (${lastInvalid.invalidReasons.join(', ') || 'kort'}). Je mag opnieuw.`) : null,
-        h('p.muted', 'Na het mediteren. Nog geen thee. Niet storen aan, stil plekje.'),
-        h('button.primary', { onclick: () => start('full', false) }, 'Start (± 6 min)'),
-        h('button', { onclick: () => start('short', false) }, 'Korte versie (± 4 min, slechte dag)'),
-      ),
-    h('button', { onclick: () => note() }, openNotes
-      ? `+ Notitie (${openNotes.ids.length} sinds je laatste sessie)`
-      : '+ Notitie (blanco moment, iets bijzonders)'),
-    h('div.row.wrap',
-      h('button.grow', { onclick: () => results() }, 'Resultaten'),
-      h('button.grow', { onclick: () => settings() }, 'Instellingen'),
-      h('button.grow', { onclick: () => help() }, 'Uitleg'),
+        h('button.primary.big', { onclick: () => start(false) }, 'Start'),
+      ],
+    h('div.nav',
+      h('button', { onclick: () => note() }, 'Notitie'),
+      h('button', { onclick: () => results() }, 'Resultaten'),
+      h('button', { onclick: () => settings() }, 'Instellingen'),
     ),
-    h('button.link', { onclick: () => start('full', true) }, 'Oefenronde (wordt niet opgeslagen)'),
-    h('p.small.muted', syncLine(cfg)),
+    h('button.link', { onclick: () => start(true) }, 'Oefenronde'),
+    backup ? h('p.small.muted', backup) : null,
   );
 }
 
@@ -80,11 +61,11 @@ function note() {
   });
 }
 
-function syncLine(cfg) {
-  if (!cfg.token) return 'Back-up: uit (stel in bij Instellingen).';
+// Only shown on the home screen when the backup needs attention.
+function backupWarning(cfg) {
+  if (!cfg.token) return 'Back-up staat uit (zie Instellingen).';
   if (syncState.status === 'error') return `Back-up mislukt: ${syncState.error}. Wordt later opnieuw geprobeerd.`;
-  if (syncState.status === 'ok') return 'Back-up: bijgewerkt.';
-  return 'Back-up: …';
+  return null;
 }
 
 // ---------------- session ----------------
@@ -122,10 +103,10 @@ function sleepContext(startedAt, bedTime, wakeTime) {
   };
 }
 
-async function start(kind, practice) {
+async function start(practice) {
   // Both need the user gesture of this tap (iOS): speech synthesis unlock + microphone permission.
   unlockTts();
-  if (kind === 'full') primeMic();
+  primeMic();
   const startedAt = new Date();
   const date = localDateStr(startedAt);
   const words = practice ? practiceList() : wordListForDay(dayIndex(date));
@@ -157,7 +138,7 @@ async function start(kind, practice) {
   const s = {
     id: `${date}_${fmtTime(startedAt).replace(':', '')}`,
     date,
-    kind: practice ? 'practice' : kind,
+    kind: practice ? 'practice' : 'full',
     appVersion: APP_VERSION,
     startedAt: startedAt.toISOString(),
     tzOffsetMin: -startedAt.getTimezoneOffset(),
@@ -170,25 +151,23 @@ async function start(kind, practice) {
 
   // Skipping the list itself or the first recall drops the whole word list for today.
   let first = null;
-  if (kind === 'full') {
-    current = 'encode-instr';
-    if (await intro('Woordenlijst', [
-      'Je ziet en hoort 12 woorden. Onthoud er zoveel mogelijk.',
-      'Daarna zeg je ze hardop, in elke volgorde. Later in de sessie vraag ik ze nog een keer.',
-    ]) === 'start') {
-      current = 'encode';
-      if (!(await encodeList(words)).skipped) {
-        current = 'immediate';
-        const r = await recallTask({ title: 'Noem alle woorden die je nog weet', subtitle: 'Woordenlijst · 1e keer', seconds: DUR.recall, hints: words });
-        if (!r.skipped) first = r;
-      }
+  current = 'encode-instr';
+  if (await intro('Woordenlijst', [
+    'Je ziet en hoort 12 woorden. Onthoud er zoveel mogelijk.',
+    'Daarna zeg je ze hardop, in elke volgorde. Later in de sessie vraag ik ze nog een keer.',
+  ]) === 'start') {
+    current = 'encode';
+    if (!(await encodeList(words)).skipped) {
+      current = 'immediate';
+      const r = await recallTask({ title: 'Noem alle woorden die je nog weet', subtitle: 'Woordenlijst · 1e keer', seconds: DUR.recall, hints: words });
+      if (!r.skipped) first = r;
     }
-    if (first) {
-      s.words = words;
-      s.tts = ttsVoiceName();
-    } else {
-      skipped.push('words');
-    }
+  }
+  if (first) {
+    s.words = words;
+    s.tts = ttsVoiceName();
+  } else {
+    skipped.push('words');
   }
 
   current = 'pvt-instr';
@@ -207,52 +186,50 @@ async function start(kind, practice) {
     else s.pvt = { trials: pvt.trials, summary: pvt.summary };
   }
 
-  if (kind === 'full') {
-    current = 'symbols-instr';
-    if (await intro('Symbolen (± 1 min)', [
-      'Bovenaan staan drie paren symbolen. Onderaan twee paren.',
-      'Tik zo snel mogelijk op het onderste paar dat precies zo bovenaan staat.',
-    ]) === 'skip') {
+  current = 'symbols-instr';
+  if (await intro('Symbolen (± 1 min)', [
+    'Bovenaan staan drie paren symbolen. Onderaan twee paren.',
+    'Tik zo snel mogelijk op het onderste paar dat precies zo bovenaan staat.',
+  ]) === 'skip') {
+    skipped.push('symbols');
+  } else {
+    await countdown(3);
+    current = 'symbols';
+    const sym = await runSymbols({ trials: DUR.symbols });
+    if (sym.skipped) {
       skipped.push('symbols');
     } else {
-      await countdown(3);
-      current = 'symbols';
-      const sym = await runSymbols({ trials: DUR.symbols });
-      if (sym.skipped) {
-        skipped.push('symbols');
-      } else {
-        s.symbols = { trials: sym.trials, summary: sym.summary };
-        motorOffsets.push(...sym.motor.offsets);
-        s.motor = { symbolMisses: sym.motor.misses };
-      }
+      s.symbols = { trials: sym.trials, summary: sym.summary };
+      motorOffsets.push(...sym.motor.offsets);
+      s.motor = { symbolMisses: sym.motor.misses };
     }
+  }
 
-    if (first) {
-      current = 'delayed-instr';
-      let second = null;
-      if (await intro('Woordenlijst, nog een keer', ['Noem opnieuw alle woorden van de lijst van het begin die je nog weet. Zeg ze hardop.']) === 'start') {
-        current = 'delayed';
-        const r = await recallTask({ title: 'Noem alle woorden van de lijst', subtitle: 'Woordenlijst · 2e keer', seconds: DUR.recall, hints: words });
-        if (!r.skipped) second = r;
-      }
-      if (!second) skipped.push('delayed');
-
-      current = 'review';
-      const rev = await review(words, first, second);
-      const n1 = rev.first.filter(Boolean).length;
-      const n2 = second ? rev.second.filter(Boolean).length : null;
-      const keep = (r) => ({ durationMs: r.durationMs, endedEarly: r.endedEarly, speech: r.speech, timing: speechTiming(r.speech.timeline, words, r.durationMs) });
-      s.recall = { first: keep(first), second: second ? keep(second) : null };
-      s.memory = {
-        immediate: n1,
-        delayed: n2,
-        retention: n1 && n2 !== null ? Math.round((n2 / n1) * 100) / 100 : null,
-        recalledFirst: rev.first,
-        recalledSecond: rev.second,
-        auto: rev.auto,
-        reviewEdits: rev.edits,
-      };
+  if (first) {
+    current = 'delayed-instr';
+    let second = null;
+    if (await intro('Woordenlijst, nog een keer', ['Noem opnieuw alle woorden van de lijst van het begin die je nog weet. Zeg ze hardop.']) === 'start') {
+      current = 'delayed';
+      const r = await recallTask({ title: 'Noem alle woorden van de lijst', subtitle: 'Woordenlijst · 2e keer', seconds: DUR.recall, hints: words });
+      if (!r.skipped) second = r;
     }
+    if (!second) skipped.push('delayed');
+
+    current = 'review';
+    const rev = await review(words, first, second);
+    const n1 = rev.first.filter(Boolean).length;
+    const n2 = second ? rev.second.filter(Boolean).length : null;
+    const keep = (r) => ({ durationMs: r.durationMs, endedEarly: r.endedEarly, speech: r.speech, timing: speechTiming(r.speech.timeline, words, r.durationMs) });
+    s.recall = { first: keep(first), second: second ? keep(second) : null };
+    s.memory = {
+      immediate: n1,
+      delayed: n2,
+      retention: n1 && n2 !== null ? Math.round((n2 / n1) * 100) / 100 : null,
+      recalledFirst: rev.first,
+      recalledSecond: rev.second,
+      auto: rev.auto,
+      reviewEdits: rev.edits,
+    };
   }
 
   current = 'yesterday';
@@ -307,7 +284,7 @@ function detail(s, back) {
 }
 
 function help() {
-  render(h('div.row', h('h1.grow', 'Uitleg'), h('button', { onclick: () => home() }, 'Terug')), ...helpView());
+  render(h('div.row', h('h1.grow', 'Uitleg'), h('button', { onclick: () => settings() }, 'Terug')), ...helpView());
 }
 
 function settings() {
@@ -348,13 +325,13 @@ function settings() {
       h('div.row.wrap', act('Test verbinding', async () => `Verbonden met ${await testConnection()} ✓`),
         act('Nu synchroniseren', async () => { syncState = await syncPending(); return syncState.status === 'ok' ? `${syncState.count} sessie(s) geüpload ✓` : syncState.status === 'off' ? 'Geen token ingesteld.' : `Fout: ${syncState.error}`; }),
         act('Herstellen vanaf GitHub', async () => `${await restoreAll()} sessie(s) hersteld.`)),
-      h('p.small.muted', 'Zie Uitleg voor het aanmaken van de repo en het token.'),
     ),
     h('div.card',
       h('h3', 'Data'),
       act('Exporteer alles (JSON)', exportAll),
       h('p.small.muted', `Versie ${APP_VERSION}`),
     ),
+    h('button', { onclick: () => { save(); help(); } }, 'Uitleg (Shortcut, back-up, spraak)'),
     out,
   );
 }

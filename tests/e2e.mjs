@@ -1,4 +1,4 @@
-// End-to-end smoke test: makes a quick note, then plays one full session with shortened timings (?e2e)
+// End-to-end smoke test: checks the home screen, makes a quick note, then plays one full session with shortened timings (?e2e)
 // and a fake speech recogniser that returns deliberately messy transcripts (glued words, plurals, an
 // intrusion), then opens the results and one session's details.
 // Part 2 skips parts ("Overslaan"): a practice run skipping almost everything, then a saved session
@@ -45,23 +45,47 @@ let shot = 0;
 const snap = async (name) => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${String(++shot).padStart(2, '0')}-${name}.png` }); };
 const clickText = (t) => page.getByRole('button', { name: t, exact: true }).first().click();
 const say = async (text) => { await page.waitForSelector('.dot.live'); await page.evaluate((t) => window.__emit(t), text); };
+// 0–10 sliders: tap at a value, or drag from one value to another.
+const railPoint = async (value, n) => {
+  const box = await page.locator('.slider .rail').nth(n).boundingBox();
+  return [box.x + (box.width * value) / 10, box.y + box.height / 2];
+};
+const setSlider = async (value, n = 0) => page.mouse.click(...await railPoint(value, n));
+const dragSlider = async (from, to, n = 0) => {
+  await page.mouse.move(...await railPoint(from, n));
+  await page.mouse.down();
+  await page.mouse.move(...await railPoint(to, n), { steps: 6 });
+  await page.mouse.up();
+};
+const sliderValue = (n = 0) => page.locator('.slider-value').nth(n).textContent();
 
 const wake = new Date(Date.now() - 20 * 60000);
 await page.goto(`${BASE}?e2e&wake=${encodeURIComponent(stamp(wake))}&steps=8412`);
 await page.waitForSelector('text=Fogmeter');
 await snap('home');
+const homeButtons = await page.locator('#app button').allTextContents();
 
-// Quick note (as if made yesterday at work): text + optional rating.
-await page.locator('button', { hasText: '+ Notitie' }).click();
+// Uitleg lives under Instellingen now.
+await clickText('Instellingen');
+await clickText('Uitleg (Shortcut, back-up, spraak)');
+await page.waitForSelector('text=Elke ochtend');
+await clickText('Terug');
+await clickText('Klaar');
+
+// Quick note (as if made yesterday at work): text + optional rating (set, cleared, set again).
+await clickText('Notitie');
 await page.locator('textarea').fill('blanco moment in overleg');
-await page.locator('.scale.s11 button').nth(6).click();
+await setSlider(9);
+await clickText('wis');
+const noteCleared = (await sliderValue()) === '–';
+await setSlider(4);
 await snap('note');
 await clickText('Bewaar');
-await page.waitForSelector('text=1 sinds je laatste sessie');
 
-await clickText('Start (± 6 min)');
+await clickText('Start');
 await page.waitForSelector('text=Hoe helder voelt je hoofd nu?');
-await page.locator('.scale.s11 button').nth(3).click();
+const checkinEmpty = (await sliderValue()) === '–' && await page.locator('.slider .track.unset').count() === 1;
+await dragSlider(2, 7);
 await clickText('goed');
 await snap('checkin');
 await clickText('Verder');
@@ -136,10 +160,15 @@ await snap('review');
 await page.locator('.review-grid .toggle').nth(6 * 2 + 1).click(); // row 7, "2e keer"
 await clickText('Opslaan');
 
-// Yesterday (activity is skipped because steps came from the Shortcut)
+// Yesterday (activity is left out because steps came from the Shortcut): n.v.t. first, then a rating.
 await page.waitForSelector('text=Gisteren', { timeout: 15000 });
-await page.locator('.scale.s11 button').nth(2).click();
+const yesterdayText = await page.locator('#app').textContent();
 await clickText('normaal');
+await clickText('n.v.t.');
+const naOk = (await sliderValue()) === '–' && await page.getByRole('button', { name: 'Verder' }).isEnabled();
+await setSlider(8);
+const naCleared = !(await page.locator('.slider button.selected').count());
+const notePlaceholder = await page.locator('textarea').getAttribute('placeholder');
 const notePrefill = await page.locator('textarea').inputValue();
 await page.locator('textarea').fill(`${notePrefill}\ntest: verder niets`);
 await snap('yesterday');
@@ -171,6 +200,13 @@ const s = saved[saved.length - 1];
 const firstAuto = prefilled.filter((_, i) => i % 2 === 0);
 const secondAuto = prefilled.filter((_, i) => i % 2 === 1);
 const checks = {
+  homeMinimal: JSON.stringify(homeButtons) === JSON.stringify(['Start', 'Notitie', 'Resultaten', 'Instellingen', 'Oefenronde']),
+  checkinEmpty,
+  clarityNow: s.now.clarity === 7 && s.now.fog === undefined,
+  noteCleared,
+  yesterdayMinimal: yesterdayText.includes('Hoe helder was je hoofd?') && !yesterdayText.includes('Stappen') && notePlaceholder === null,
+  naOk,
+  naCleared,
   kind: s.kind === 'full',
   wakeFromShortcut: s.now.wakeSource === 'shortcut',
   minutesSinceWake: s.context.minutesSinceWake >= 19 && s.context.minutesSinceWake <= 25,
@@ -188,9 +224,9 @@ const checks = {
   intrusionSeen: s.memory.auto.extraFirst.includes('banaan'),
   pvtTrials: s.pvt.summary.n >= 1,
   symbolsCorrect: s.symbols.summary.accuracy === 1,
-  yesterday: s.yesterday.dayFog === 2 && s.yesterday.stress === 2 && s.yesterday.note.endsWith('verder niets'),
+  yesterday: s.yesterday.dayClarity === 8 && !s.yesterday.dayNa && s.yesterday.stress === 2 && s.yesterday.note.endsWith('verder niets'),
   notePrefilled: /^\d\d:\d\d blanco moment in overleg$/.test(notePrefill) && s.yesterday.noteIds?.length === 1,
-  noteSaved: notes.length === 1 && notes[0].fog === 6 && notes[0].text === 'blanco moment in overleg',
+  noteSaved: notes.length === 1 && notes[0].clarity === 4 && notes[0].text === 'blanco moment in overleg',
   rawCharts: rawCharts >= 5,
   detail: detailText.includes('Reactietest') && detailText.includes('banaan') && detailText.includes('Beeldverversing'),
   motor: s.motor.taps > 0,
@@ -214,7 +250,7 @@ const skipTask = async () => {
 };
 
 // Practice run: skip the check-in, the word list while it is shown, and every intro after that.
-await clickText('Oefenronde (wordt niet opgeslagen)');
+await clickText('Oefenronde');
 await page.waitForSelector('text=Hoe helder voelt je hoofd nu?');
 await clickText('Overslaan');
 await page.waitForSelector('text=Woordenlijst');
@@ -230,9 +266,9 @@ await clickText('Overslaan');
 await page.waitForSelector('text=Oefenronde: niet opgeslagen');
 await clickText('Terug');
 
-await clickText('Start (± 6 min)');
+await clickText('Start');
 await page.waitForSelector('text=Hoe helder voelt je hoofd nu?');
-await page.locator('.scale.s11 button').nth(4).click();
+await setSlider(6);
 await clickText('redelijk');
 await clickText('Verder');
 await clickText('Start');
@@ -281,8 +317,8 @@ const skipChecks = {
   noSymbols: k.symbols === undefined,
   memory: k.memory.immediate === 1 && k.memory.delayed === null && k.memory.retention === null && k.recall.second === null,
   reviewOneColumn: reviewCols === 1,
-  yesterdaySkipped: k.yesterday.skipped === true && k.yesterday.dayFog === null,
-  checkinKept: k.now.fog === 4 && !k.now.skipped,
+  yesterdaySkipped: k.yesterday.skipped === true && k.yesterday.dayClarity === null,
+  checkinKept: k.now.clarity === 6 && !k.now.skipped,
   resultsText: results2.includes('Overgeslagen: reactietest, symbolen, woordenlijst 2e keer, vragen gisteren') && results2.includes('1+–'),
   detailText: detail2.includes('1 / –'),
 };

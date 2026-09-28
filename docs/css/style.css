@@ -83,18 +83,35 @@ button.primary {
   font-size: 19px;
   padding: 18px;
 }
+button.big { padding: 28px 18px; font-size: 22px; }
+.nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.nav button { padding: 14px 4px; font-size: 16px; }
 button.link { background: none; border: none; color: var(--accent); padding: 8px 0; min-height: 0; }
 button.link.muted { color: var(--muted); font-size: 15px; }
 button.selected { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 650; }
 button:disabled { opacity: .45; }
 
 .scale { display: grid; gap: 6px; }
-.scale.s11 { grid-template-columns: repeat(11, 1fr); }
 .scale.s5 { grid-template-columns: repeat(5, 1fr); }
 .scale.s3 { grid-template-columns: repeat(3, 1fr); }
 .scale button { padding: 12px 0; min-height: 46px; font-size: 16px; }
 .scale.s5 button, .scale.s3 button { font-size: 14px; padding: 10px 2px; }
 .anchors { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); }
+
+/* 0–10 slider: tall touch area, thin line; no thumb until answered */
+.slider { display: flex; gap: 12px; align-items: flex-start; }
+.slider > .grow { min-width: 0; }
+.slider .track { height: 44px; padding: 0 14px; touch-action: none; cursor: pointer; border-radius: 10px; }
+.slider .rail { position: relative; height: 100%; }
+.slider .rail::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px;
+  border-radius: 2px; background: var(--line); }
+.slider .tick { position: absolute; top: 50%; width: 2px; height: 10px; margin: -5px 0 0 -1px; background: var(--line); }
+.slider .thumb { position: absolute; top: 50%; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+.slider .track.unset .thumb { display: none; }
+.slider-value { width: 2ch; line-height: 44px; font-size: 22px; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; }
+.slider > button { min-height: 44px; padding: 8px 12px; font-size: 15px; }
+.slider > button.link { padding: 8px 0; }
 
 input[type=time], input[type=text], input[type=password], textarea {
   font: inherit;

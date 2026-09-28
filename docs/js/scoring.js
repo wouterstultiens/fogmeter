@@ -222,14 +222,21 @@ export function validity(session) {
 export const RUN_IN = 14;
 export const BASELINE_N = 28;
 
+// Clarity ratings: 0 = heel mistig … 10 = heel helder. Before app 1.3 they were stored the other way
+// round, as fog (0 = helder … 10 = mistig); those are read as 10 − fog.
+const clarity = (v, oldFog) => (Number.isFinite(v) ? v : Number.isFinite(oldFog) ? 10 - oldFog : null);
+export const clarityNow = (s) => clarity(s.now?.clarity, s.now?.fog);
+export const clarityDay = (s) => clarity(s.yesterday?.dayClarity, s.yesterday?.dayFog);
+export const noteClarity = (n) => clarity(n.clarity, n.fog);
+
 /** Metric extractors, all signed so higher = better. */
 export const METRICS = {
   pvtSpeed: (s) => s.pvt?.summary?.meanSpeed,
   pvtLapses: (s) => neg(s.pvt?.summary?.lapses),
   symRT: (s) => neg(logOrNull(s.symbols?.summary?.medianRT)),
   memory: (s) => (Number.isFinite(s.memory?.immediate) && Number.isFinite(s.memory?.delayed) ? s.memory.immediate + s.memory.delayed : null),
-  fogNow: (s) => neg(s.now?.fog),
-  fogDay: (s) => neg(s.yesterday?.dayFog),
+  clarityNow,
+  clarityDay,
 };
 
 function neg(x) { return Number.isFinite(x) ? -x : null; }
@@ -297,7 +304,7 @@ export function computeIndices(sessions) {
       session: s,
       runIn: !runInEnd || s.date <= runInEnd,
       obj: usable && s.kind === 'full' ? avg(Object.values(domains)) : null,
-      subj: avg([zz.fogNow, zz.fogDay]),
+      subj: avg([zz.clarityNow, zz.clarityDay]),
       domains,
       z: zz,
     };

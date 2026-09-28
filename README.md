@@ -4,7 +4,7 @@ A ~6-minute daily morning test for tracking brain fog. It runs as a free web app
 opened through an iOS Shortcut. Why it measures what it measures: see [DESIGN.md](DESIGN.md).
 
 **The session:**
-1. Check-in: fog right now, sleep quality, sleep times
+1. Check-in: how clear your head is right now (0–10 slider), sleep quality, sleep times
 2. Learn a 12-word list (Dutch)
 3. First recall: say the words aloud; speech recognition listens (no tapping)
 4. 3-minute reaction-time test (PVT-B)
@@ -12,14 +12,21 @@ opened through an iOS Shortcut. Why it measures what it measures: see [DESIGN.md
 6. Second recall (same as step 3)
 7. Review: both transcripts on top (recognised list words marked), then per-word "1st / 2nd time" ticks prefilled
    from speech recognition. You only fix mistakes. The list is shown only here, at the end.
-8. Three "yesterday" questions + an optional note (prefilled with any quick notes made since the last session)
+8. "Yesterday": how clear your head was (0–10 slider, or "n.v.t."), stress, activity (only without a Shortcut
+   step count) + an optional note (prefilled with any quick notes made since the last session)
+
+All 0–10 ratings run from 0 = heel mistig to 10 = heel helder. Sessions from before app 1.3 stored the reverse (fog)
+and are converted when read.
+
+**Home screen:** Start, then Notitie / Resultaten / Instellingen, and Oefenronde (practice, not saved). The setup
+instructions (Uitleg) are under Instellingen.
 
 **Skipping:** every part has a small "Overslaan" (skip): below the Start button on each intro screen, and top
 right while a task runs (tap twice, so a stray tap never skips). A skipped part just has no score that day; the rest
 of the session counts normally. Skipping the list or the first recall drops the whole word list. Leaving the app
 during a part you then skip (e.g. a phone call during the reaction test) doesn't make the session invalid.
 
-**Any time (optional):** "+ Notitie" on the home screen: a short text plus an optional "how clear right now" 0–10.
+**Any time (optional):** "Notitie" on the home screen: a short text plus an optional "how clear right now" 0–10.
 The text prefills the next morning's note; the rating is stored separately.
 
 **Results:** raw scores of every session (run-in included) as small charts, a table of all sessions with
@@ -37,7 +44,7 @@ full per-session details, all notes, and (after the run-in) the 7-day trend vs. 
 3. **iPhone.**
    - Safari microphone: allow it (Settings → Apps → Safari → Microphone).
    - Build the Shortcut: automatic wake time when you stop your alarm, plus step count from Apple Health.
-     Step-by-step instructions are in the app under **Uitleg**.
+     Step-by-step instructions are in the app under Instellingen → **Uitleg**.
 4. Do one **Oefenronde** (practice run, not saved) to check that Dutch speech recognition works on your phone.
    If it doesn't, switch to typing in Instellingen.
 

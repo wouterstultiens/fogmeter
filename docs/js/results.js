@@ -1,7 +1,7 @@
 // Results: today's numbers vs. your normal, raw scores of every session (run-in included), 7-day trend
 // chart, domain breakdown, a table of all sessions with per-session details, and quick notes.
 import { h, fmtTime } from './ui.js';
-import { computeIndices, rolling, median, RUN_IN, BASELINE_N } from './scoring.js';
+import { computeIndices, rolling, median, clarityNow, clarityDay, noteClarity, RUN_IN, BASELINE_N } from './scoring.js';
 import { heardBlock } from './tasks/questions.js';
 
 const SERIES = [
@@ -171,8 +171,8 @@ const RAW = [
     series: [{ label: '1e keer', f: (s) => s.memory?.immediate }, { label: '2e keer', f: (s) => s.memory?.delayed }],
   },
   {
-    title: 'Mist (0–10)', hint: 'lager = helderder', ticks: [0, 5, 10],
-    series: [{ label: 'nu', f: (s) => s.now?.fog }, { label: 'gisteren overdag', f: (s) => s.yesterday?.dayFog }],
+    title: 'Helderheid (0–10)', hint: 'hoger = helderder', ticks: [0, 5, 10],
+    series: [{ label: 'nu', f: clarityNow }, { label: 'gisteren', f: clarityDay }],
   },
   { title: 'Tijd in bed (uur)', digits: 1, series: [{ label: 'tijd in bed', f: (s) => s.context?.timeInBedMin / 60 }] },
 ];
@@ -291,7 +291,7 @@ function tableCard(sessions, onOpen) {
     onOpen ? h('p.small.muted', 'Tik op een rij voor alle details.') : null,
     h('div', { style: { overflowX: 'auto' } },
       h('table.small.sessions',
-        h('tr', ...['Datum', 'RT', 'Mis', 'Sym', 'Woorden', 'Mist', ''].map(th)),
+        h('tr', ...['Datum', 'RT', 'Mis', 'Sym', 'Woorden', 'Helder', ''].map(th)),
         ...rows.map((s) => h('tr', {
           style: { opacity: s.valid ? 1 : 0.5 },
           class: onOpen ? 'tap' : null,
@@ -302,7 +302,7 @@ function tableCard(sessions, onOpen) {
           f(s.pvt?.summary?.lapses),
           f(s.symbols?.summary?.medianRT),
           s.memory ? `${s.memory.immediate}+${s.memory.delayed ?? '–'}` : '–',
-          f(s.now?.fog),
+          f(clarityNow(s)),
           onOpen ? '›' : '',
         ].map((v) => h('td', v)))),
       ),
@@ -317,7 +317,7 @@ function notesCard(notes) {
     h('h3', `Notities (${rows.length})`),
     ...rows.map((n) => h('p.small',
       h('span.muted', `${fmtD(n.date)} ${fmtTime(new Date(n.at))}`),
-      n.fog != null ? ` · helder ${n.fog}/10` : '',
+      noteClarity(n) !== null ? ` · helder ${noteClarity(n)}/10` : '',
       n.text ? ` · ${n.text}` : '')),
   );
 }
@@ -351,7 +351,7 @@ export function sessionDetail(s) {
 
   const c = s.context || {};
   out.push(card('Nu',
-    kv('Mist nu', n(s.now?.fog, 0, ' / 10')),
+    kv('Helder nu', n(clarityNow(s), 0, ' / 10')),
     kv('Slaapkwaliteit', SLEEP_Q[s.now?.sleepQuality]),
     kv('Lichten uit', `${s.now?.bedTime || '–'} (${s.now?.bedSource || '?'})`),
     kv('Wakker', `${s.now?.wakeTime || '–'} (${s.now?.wakeSource || '?'})`),
@@ -406,7 +406,7 @@ export function sessionDetail(s) {
   const y = s.yesterday;
   if (y) {
     out.push(card('Gisteren',
-      kv('Mist overdag', y.dayOff ? 'vrije dag' : n(y.dayFog, 0, ' / 10')),
+      kv('Helder', y.dayNa ? 'n.v.t.' : y.dayOff ? 'vrije dag' : n(clarityDay(s), 0, ' / 10')),
       Number.isFinite(c.steps24h) ? kv('Stappen', c.steps24h.toLocaleString('nl-NL')) : kv('Beweging', ACTIVITY[y.activity]),
       kv('Stress / werkdruk', STRESS[y.stress]),
       h('p.small', { style: { whiteSpace: 'pre-wrap' } }, y.note || h('span.muted', 'Geen notitie.')),

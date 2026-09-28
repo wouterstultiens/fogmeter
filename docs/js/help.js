@@ -21,8 +21,8 @@ export function helpView() {
     ),
 
     section('Notities (optioneel, wanneer je wilt)',
-      h('p.small', 'Tik op "+ Notitie" op het startscherm als er iets is: een blanco moment op je werk, hoofdpijn, laat gegeten. Eventueel met een cijfer voor hoe helder je op dat moment bent. Kost ± 10 seconden.'),
-      h('p.small.muted', 'De volgende ochtend staat je tekst al ingevuld bij "Iets bijzonders?". Het cijfer wordt apart bewaard; de ochtendvraag over gisteren blijft zo elke dag dezelfde meting.'),
+      h('p.small', 'Tik op "Notitie" op het startscherm als er iets is: een blanco moment op je werk, hoofdpijn, laat gegeten. Eventueel met een cijfer voor hoe helder je op dat moment bent. Kost ± 10 seconden.'),
+      h('p.small.muted', 'De volgende ochtend staat je tekst al ingevuld in de notitie aan het eind van de sessie. Het cijfer wordt apart bewaard; de ochtendvraag over gisteren blijft zo elke dag dezelfde meting.'),
     ),
 
     section('Eenmalig: betere spraakherkenning',

@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   tokenize, tokenMatches, detectListWords, phoneticKey, markTranscript, speechTiming, summarizePvt, summarizeSymbols,
-  validity, computeIndices, rolling, RUN_IN, METRICS,
+  validity, computeIndices, rolling, RUN_IN, METRICS, clarityNow, clarityDay, noteClarity,
 } from '../docs/js/scoring.js';
 
 test('tokenize normalises and drops fillers', () => {
@@ -114,6 +114,26 @@ test('memory metric needs both recalls (a skipped 2nd recall is not a 0)', () =>
   assert.equal(METRICS.memory({ memory: { immediate: 7, delayed: 5 } }), 12);
   assert.equal(METRICS.memory({ memory: { immediate: 7, delayed: null } }), null);
   assert.equal(METRICS.memory({}), null);
+});
+
+test('clarity ratings: stored as is; old fog ratings (0 = helder) read as 10 − fog', () => {
+  assert.equal(clarityNow({ now: { clarity: 7 } }), 7);
+  assert.equal(clarityNow({ now: { clarity: 0 } }), 0);
+  assert.equal(clarityNow({ now: { fog: 3 } }), 7);
+  assert.equal(clarityNow({ now: { clarity: null } }), null);
+  assert.equal(clarityDay({ yesterday: { dayClarity: 8 } }), 8);
+  assert.equal(clarityDay({ yesterday: { dayFog: 10 } }), 0);
+  assert.equal(clarityDay({ yesterday: { dayClarity: null, dayNa: true } }), null);
+  assert.equal(clarityDay({}), null);
+  assert.equal(noteClarity({ clarity: 4 }), 4);
+  assert.equal(noteClarity({ fog: 6 }), 4);
+  assert.equal(noteClarity({ clarity: null }), null);
+});
+
+test('subjective index is the same for old fog and new clarity ratings', () => {
+  const old = Array.from({ length: RUN_IN + 10 }, (_, i) => fakeSession(i));
+  const now = old.map((s) => ({ ...s, now: { clarity: 10 - s.now.fog }, yesterday: { dayClarity: 10 - s.yesterday.dayFog } }));
+  assert.deepEqual(computeIndices(now).days.map((d) => d.subj), computeIndices(old).days.map((d) => d.subj));
 });
 
 function fakeSession(i, jitter = 0) {

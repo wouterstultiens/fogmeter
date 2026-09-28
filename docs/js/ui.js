@@ -125,6 +125,49 @@ export function choiceScale(options, cls, onPick, selected = null) {
   return wrap;
 }
 
+/**
+ * 0–max rating slider. Starts empty (no thumb), so no default or earlier answer anchors the rating.
+ * Tap or drag anywhere on the track; custom because an iOS <input type=range> only moves by dragging
+ * its thumb. anchors: [left, right] labels under the track. extra: element placed at the end of the row.
+ * el.set(value | null) sets or clears it from outside without calling onPick.
+ */
+export function slider(onPick, { max = 10, anchors = [], extra = null } = {}) {
+  let value = null;
+  const thumb = h('div.thumb');
+  const rail = h('div.rail', ...Array.from({ length: max + 1 }, (_, i) => h('span.tick', { style: { left: `${(i / max) * 100}%` } })), thumb);
+  const track = h('div.track', { role: 'slider', tabindex: 0, 'aria-valuemin': 0, 'aria-valuemax': max }, rail);
+  const readout = h('span.slider-value');
+  const el = h('div.slider',
+    h('div.grow', track, anchors.length ? h('div.anchors', ...anchors.map((a) => h('span', a))) : null),
+    readout,
+    extra,
+  );
+  const draw = () => {
+    track.classList.toggle('unset', value === null);
+    thumb.style.left = `${((value ?? 0) / max) * 100}%`;
+    readout.textContent = value === null ? '–' : String(value);
+    if (value === null) track.removeAttribute('aria-valuenow');
+    else track.setAttribute('aria-valuenow', value);
+  };
+  const pick = (v) => {
+    v = Math.max(0, Math.min(max, v));
+    if (v === value) return;
+    value = v;
+    draw();
+    onPick(v);
+  };
+  const fromX = (e) => { const r = rail.getBoundingClientRect(); return Math.round(((e.clientX - r.left) / r.width) * max); };
+  track.addEventListener('pointerdown', (e) => { track.setPointerCapture(e.pointerId); pick(fromX(e)); });
+  track.addEventListener('pointermove', (e) => { if (track.hasPointerCapture(e.pointerId)) pick(fromX(e)); });
+  track.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1 }[e.key];
+    if (step) { e.preventDefault(); pick((value ?? Math.round(max / 2)) + step); }
+  });
+  el.set = (v) => { value = v; draw(); };
+  draw();
+  return el;
+}
+
 export function fmtTime(date) {
   const p = (n) => String(n).padStart(2, '0');
   return `${p(date.getHours())}:${p(date.getMinutes())}`;

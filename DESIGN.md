@@ -1,4 +1,19 @@
-# Fogmeter: daily cognitive benchmark, design v0.5 (v1.1 built)
+# Fogmeter: daily cognitive benchmark, design v0.6 (v1.3 built)
+
+> **v0.6 changes (app 1.3.0, less noise):**
+> - **Clarity scale runs the right way round.** Every 0–10 rating asks "Hoe helder…?", so 0 = heel mistig and
+>   10 = heel helder. Stored as `now.clarity`, `yesterday.dayClarity` and `clarity` on notes. Older data stored
+>   `fog` / `dayFog` (0 = helder) and is read as 10 − fog (`clarityNow`, `clarityDay`, `noteClarity` in
+>   `scoring.js`); the z-scored Subjective Fog Index is unchanged by the flip.
+> - **Slider instead of 11 buttons.** It starts empty (no thumb), so no default anchors the rating; tap or drag
+>   anywhere on it. The slider is not a tap target for the motor metric (it has no centre to aim at), so the
+>   check-in and "yesterday" screens now add fewer taps to it.
+> - **"Yesterday" is simply "Hoe helder was je hoofd?"**, with **"n.v.t."** next to the slider (`dayNa`; formerly
+>   "vrije dag", `dayOff`). The step-count card is gone (the steps are still recorded from the Shortcut), and the
+>   note field has no placeholder or hint.
+> - **No short version.** The home screen is Start, Notitie / Resultaten / Instellingen and Oefenronde. Uitleg
+>   moved into Instellingen; the date, phase, Shortcut banner and routine hint are gone, and the backup line
+>   only shows when the backup is off or failing.
 
 > **v0.5 changes (app 1.1.0, after the first sessions):**
 > - **Recall is speech only; no tapping.** Saying and tapping at the same time was double work and distracting.
@@ -138,7 +153,8 @@ early because it's the most state-sensitive. "Now" questions come *before* the t
 performance doesn't colour your rating. "Yesterday" questions come *after*.
 
 ### 3.1 Now (~15 s)
-- **Fog**: "Hoe helder voelt je hoofd nu?" 0 = helemaal helder → 10 = extreem mistig. One slider.
+- **Clarity**: "Hoe helder voelt je hoofd nu?" 0 = heel mistig → 10 = heel helder. One slider (v0.6; before, the
+  scale ran the other way).
 - **Sleep quality** (Consensus Sleep Diary item): zeer slecht / slecht / redelijk / goed / zeer goed.
 - **Sleep times**: *lights out* and *woke up*, both **prefilled with yesterday's values**.
   Usually just tap "klopt" ("correct"); adjust only if different.
@@ -216,10 +232,10 @@ All items have a default, so a "normal" day takes three taps and an empty note.
 
 | Item | Options | Why |
 |---|---|---|
-| **Daytime fog yesterday** | 0–10 slider, or "vrije dag" (day off) | **The most important one.** Checks whether the morning test predicts your actual workday. If it doesn't, the benchmark needs adjusting. |
+| **Daytime fog yesterday** | "Hoe helder was je hoofd?" 0–10 slider (0 = heel mistig), or "n.v.t." (v0.6; was "vrije dag") | **The most important one.** Checks whether the morning test predicts your actual workday. If it doesn't, the benchmark needs adjusting. |
 | **Physical activity yesterday** | geen / licht / flink (none / light / vigorous) | Exercise is a common, plausible fog lever; you have no wearable to measure it |
 | **Stress/workload yesterday** | laag / normaal / hoog (low / normal / high) | Stress drives subjective fog and poor sleep. Without it, stressful weeks look like "the intervention failed". |
-| **Anything unusual?** | Free-text field, optional, empty by default. Placeholder hint: "bv. ziek, laat gegeten, geen thee, slecht geslapen, meditatie overgeslagen, blanco moment op werk…" ("e.g. sick, ate late, no tea, slept badly, skipped meditation, went blank at work…") | **Log exceptions, not constants.** Your tea (0–1) and alcohol (none) are near-constant, so you only write something when a day deviates. At analysis time the notes are coded into categories (sick, late meal, …), so nothing has to be decided up front. |
+| **Anything unusual?** | Free-text field ("Notitie"), optional, empty by default and without a placeholder (v0.6) | **Log exceptions, not constants.** Your tea (0–1) and alcohol (none) are near-constant, so you only write something when a day deviates. At analysis time the notes are coded into categories (sick, late meal, …), so nothing has to be decided up front. |
 
 **Why the morning works instead of an evening log:**
 - Recall of *yesterday* the next morning is fine for these items, because they are coarse and salient.
@@ -422,7 +438,7 @@ Bringing 4–6 weeks of app data to that appointment is genuinely useful.
   - Optional: a charger-connected automation stamps bedtime.
   - The app runs in a Safari tab rather than as a home-screen web app, because a Shortcut can only open Safari, and
     the two keep separate storage.
-  - Setup steps are in the app under "Uitleg".
+  - Setup steps are in the app under Instellingen → "Uitleg".
 
 ### v1 scope (build first)
 - All 6 session steps

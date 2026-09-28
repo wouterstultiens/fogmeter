@@ -1,17 +1,18 @@
 // Quick notes: optional, any time of day (a blank moment at work, the evening, ...).
-// Text + an optional "how clear right now" rating. The next morning the texts prefill "Iets bijzonders?";
+// Text + an optional "how clear right now" rating. The next morning the texts prefill the session's note;
 // the ratings are kept separately so the morning "yesterday" question stays the same measure every day.
-import { h, render, choiceScale, fmtTime } from './ui.js';
+import { h, render, fmtTime } from './ui.js';
 import { notesDb } from './db.js';
 import { localDateStr } from './schedule.js';
 import { APP_VERSION } from './config.js';
-import { FOG } from './tasks/questions.js';
+import { claritySlider } from './tasks/questions.js';
+import { noteClarity } from './scoring.js';
 
 const MAX_AGE_MS = 48 * 3600000;
 
 /**
  * Notes with text made since the last session (and at most 48 h ago), oldest first.
- * Returns { text, ids } for the morning's "Iets bijzonders?" field, or null if there are none.
+ * Returns { text, ids } for the morning's note field, or null if there are none.
  */
 export function pendingNotes(notes, lastSessionAt, now = new Date()) {
   const cutoff = new Date(now.getTime() - MAX_AGE_MS).toISOString();
@@ -34,16 +35,17 @@ export function noteLine(n, now = new Date()) {
 
 /** The quick-note screen. onDone(saved: boolean). */
 export async function noteScreen(onDone) {
-  let fog = null;
-  const text = h('textarea', { placeholder: 'bv. blanco moment in overleg, hoofdpijn, laat gegeten, slecht geslapen…' });
+  let clarity = null;
+  const text = h('textarea');
   const save = h('button.primary', { disabled: true, onclick: () => submit() }, 'Bewaar');
-  const update = () => { save.disabled = !text.value.trim() && fog === null; };
+  const update = () => {
+    save.disabled = !text.value.trim() && clarity === null;
+    clear.style.visibility = clarity === null ? 'hidden' : 'visible';
+  };
   text.addEventListener('input', update);
-  const scale = choiceScale(FOG, 's11', (v) => { fog = v; update(); });
-  const clear = h('button.link', {
-    type: 'button',
-    onclick: () => { fog = null; scale.querySelectorAll('button').forEach((b) => b.classList.remove('selected')); update(); },
-  }, 'Geen cijfer');
+  // Hidden rather than removed while empty, so the slider keeps its width.
+  const clear = h('button.link', { type: 'button', onclick: () => { clarity = null; scale.set(null); update(); } }, 'wis');
+  const scale = claritySlider((v) => { clarity = v; update(); }, clear);
 
   const recent = (await notesDb.all())
     .filter((n) => n.at > new Date(Date.now() - MAX_AGE_MS).toISOString())
@@ -52,18 +54,13 @@ export async function noteScreen(onDone) {
   render(
     h('div.row', h('h1.grow', 'Notitie'), h('button', { onclick: () => onDone(false) }, 'Annuleer')),
     h('div.card', h('p', 'Wat is er?'), text),
-    h('div.card',
-      h('p', 'Hoe helder voelt je hoofd nu? (optioneel)'),
-      scale,
-      h('div.anchors', h('span', 'helemaal helder'), h('span', 'extreem mistig')),
-      h('div.row', clear),
-    ),
+    h('div.card', h('p', 'Hoe helder voelt je hoofd nu?'), scale),
     save,
-    h('p.small.muted', 'Je tekst staat morgenochtend al ingevuld bij "Iets bijzonders?". Het cijfer wordt apart bewaard.'),
     recent.length
-      ? h('div.card', h('h3', 'Laatste 48 uur'), ...recent.map((n) => h('p.small', noteLine(n), n.fog != null ? h('span.muted', ` · ${n.fog}/10`) : null)))
+      ? h('div.card', h('h3', 'Laatste 48 uur'), ...recent.map((n) => h('p.small', noteLine(n), noteClarity(n) !== null ? h('span.muted', ` · ${noteClarity(n)}/10`) : null)))
       : null,
   );
+  update();
   text.focus();
 
   async function submit() {
@@ -75,7 +72,7 @@ export async function noteScreen(onDone) {
       date: localDateStr(at),
       at: at.toISOString(),
       tzOffsetMin: -at.getTimezoneOffset(),
-      fog,
+      clarity,
       text: text.value.trim(),
       appVersion: APP_VERSION,
       synced: false,
