@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  tokenize, matchesWord, scoreRecall, scoreFluency, summarizePvt, summarizeSymbols,
+  tokenize, tokenMatches, detectListWords, phoneticKey, summarizeTaps, summarizePvt, summarizeSymbols,
   validity, computeIndices, rolling, RUN_IN,
 } from '../docs/js/scoring.js';
 
@@ -9,33 +9,42 @@ test('tokenize normalises and drops fillers', () => {
   assert.deepEqual(tokenize('Eh, de Appel en  een Café!'), ['appel', 'cafe']);
 });
 
-test('matchesWord accepts plurals, diminutives and one-letter ASR slips', () => {
-  assert.ok(matchesWord('appels', 'appel'));
-  assert.ok(matchesWord('huisje', 'huis'));
-  assert.ok(matchesWord('bruggen', 'brug'));
-  assert.ok(matchesWord('fietz', 'fiets'));
-  assert.ok(!matchesWord('kat', 'kast'));
-  assert.ok(!matchesWord('boom', 'boot'));
+test('phoneticKey merges Dutch sound-alike spellings', () => {
+  assert.equal(phoneticKey('ijs'), phoneticKey('eis'));
+  assert.equal(phoneticKey('hand'), phoneticKey('hant'));
+  assert.equal(phoneticKey('vis'), phoneticKey('fis'));
+  assert.equal(phoneticKey('boom'), phoneticKey('bom'));
 });
 
-test('scoreRecall marks each list word once and reports intrusions', () => {
-  const r = scoreRecall(['appel', 'appels', 'fiets', 'zon'], ['appel', 'fiets', 'lamp']);
-  assert.deepEqual(r.recalled, [true, true, false]);
-  assert.deepEqual(r.intrusions, ['zon']);
+test('tokenMatches accepts plurals, diminutives and recogniser slips, not different words', () => {
+  assert.ok(tokenMatches('appels', 'appel'));
+  assert.ok(tokenMatches('huisje', 'huis'));
+  assert.ok(tokenMatches('bruggen', 'brug'));
+  assert.ok(tokenMatches('fietz', 'fiets'));
+  assert.ok(tokenMatches('pauw', 'pouw'));
+  assert.ok(!tokenMatches('kat', 'kast'));
+  assert.ok(!tokenMatches('boom', 'boot'));
+  assert.ok(!tokenMatches('hond', 'kont'));
 });
 
-test('scoreFluency: letter rule, same-stem dedupe, blanks and timing', () => {
-  const ev = [
-    { w: 'dak', t: 1000 }, { w: 'daken', t: 2000 }, { w: 'deur', t: 3000 },
-    { w: 'appel', t: 4000 }, { w: 'dorp', t: 20000 }, { w: 'duif', t: 21000 },
+test('detectListWords finds run-together words and words only in interim guesses', () => {
+  const words = ['appel', 'fiets', 'lamp', 'zadel', 'kerk'];
+  const texts = [
+    'appelfiets', // recogniser glued two words together
+    'lampje zon', // diminutive + an intrusion
+    'zadeltje', // interim guess the final version dropped
   ];
-  const s = scoreFluency(ev, { mode: 'letter', letter: 'D' }, 60000);
-  assert.equal(s.valid, 4); // dak, deur, dorp, duif
-  assert.equal(s.first15, 2);
-  assert.equal(s.firstLatencyMs, 1000);
-  assert.equal(s.blanks, 2); // 3s→20s gap, and 21s→60s trailing silence
-  const removed = scoreFluency(ev, { mode: 'letter', letter: 'D' }, 60000, ['dorp']);
-  assert.equal(removed.valid, 3);
+  const r = detectListWords(texts, words);
+  assert.deepEqual(r.hit, [true, true, true, true, false]);
+  assert.ok(r.extra.includes('zon'));
+});
+
+test('summarizeTaps: count, first word latency, gaps and blanks', () => {
+  const s = summarizeTaps([1500, 3000, 4000, 12000], 30000);
+  assert.equal(s.count, 4);
+  assert.equal(s.firstLatencyMs, 1500);
+  assert.equal(s.medianGapMs, 1500);
+  assert.equal(s.blanks, 2); // 4s→12s gap, and 12s→30s trailing silence
 });
 
 test('summarizePvt: speed, lapses incl. timeouts, false starts', () => {
@@ -74,7 +83,6 @@ function fakeSession(i, jitter = 0) {
     pvt: { summary: { meanSpeed: 3.5 + jitter + (i % 5) * 0.05, lapses: 2 + (i % 3) } },
     symbols: { summary: { medianRT: 1500 - (i % 4) * 20 } },
     memory: { immediate: 7 + (i % 2), delayed: 6 + (i % 3) },
-    fluency: { prompt: { mode: i % 2 ? 'category' : 'letter' }, summary: { valid: 14 + (i % 4) } },
   };
 }
 

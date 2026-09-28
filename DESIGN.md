@@ -1,6 +1,19 @@
-# Fogmeter: daily cognitive benchmark, design v0.3 (approved; v1 built)
+# Fogmeter: daily cognitive benchmark, design v0.4 (v1 built)
 
-> Status: **draft for approval**. There is no app code yet.
+> **v0.4 changes (after first use on the iPhone):**
+> - Safari's Dutch speech recognition glued words together, missed words and mis-transcribed them.
+>   Recall is now **say aloud + tap once per word**, with speech recognition listening in the background:
+>   - Taps give a reliable count and timing (first word, gaps, blanks).
+>   - The transcripts are matched against the known 12-word list. The matching handles run-together
+>     words, plurals and diminutives, and Dutch sound-alikes. It also uses every interim guess and
+>     alternative the recogniser produced, not just its final text.
+>   - At the end, one review screen shows both transcripts, with per-word "1st / 2nd time" ticks prefilled.
+>     You only fix mistakes. The list is never shown before both recalls are done.
+> - The **verbal fluency** task (letter/category) is dropped. Its answers are open-ended, so they can't be
+>   checked against a known list. The "going blank" signal now comes from PVT lapses and recall timing
+>   (first-word latency, pauses between taps).
+> - Instruction screens start by themselves after the first 3 sessions.
+> - The sections below still describe fluency where it was originally planned; v0.4 supersedes them.
 >
 > **v0.2 changes (your feedback):**
 > - Dutch language.
@@ -20,16 +33,16 @@
 
 ## 0. TL;DR
 
-**One morning session of ~7 min, done right after meditation. Nothing else during the day.**
+**One morning session of ~6 min, done right after meditation. Nothing else during the day.**
 
 | # | Step | Time | What it measures |
 |---|------|------|------------------|
 | 1 | **Now**: 3 taps | ~15 s | Fog right now · sleep quality · bedtime/wake time (prefilled, just confirm) |
-| 2 | **Word list**: learn 12 Dutch words, say them back | ~50 s | Verbal memory: "forgot the instructions" |
+| 2 | **Word list**: learn 12 Dutch words, say them back + tap per word | ~50 s | Verbal memory: "forgot the instructions" |
 | 3 | **Reaction test (PVT-B)**: tap when the counter starts | 3:00 | Attention lapses and speed: the most sensitive test for sleep loss and fatigue |
 | 4 | **Symbol Search** | ~60 s | Processing speed: "my mind feels slow" |
-| 5 | **Word fluency**: say as many words as you can for 60 s | ~65 s | Word retrieval: "going blank in meetings" |
-| 6 | **Word list: delayed recall** | ~30 s | Remembering after ~5 min of other work |
+| 5 | **Word list: second recall** (say + tap) | ~30 s | Remembering after ~4 min of other work |
+| 6 | **Review**: check what speech recognition heard | ~15 s | Confirms which words were recalled, 1st and 2nd time |
 | 7 | **Yesterday**: 3 taps + optional free-text note | ~15 s | Daytime fog yesterday · activity · stress · anything unusual |
 | — | *Automatic*: tap accuracy, time since waking, device checks | 0 s | Clumsiness, sleep inertia, data quality |
 

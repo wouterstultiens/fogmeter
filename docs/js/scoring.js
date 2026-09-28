@@ -1,24 +1,58 @@
 // Pure scoring functions (no DOM) so they can be unit-tested in Node.
 
-const STOPWORDS = new Set([
+/**
+ * Timing of say-aloud-and-tap recall. taps: ms since recall start, one per word said.
+ */
+export function summarizeTaps(taps, durationMs = 30000) {
+  const times = taps.slice().sort((a, b) => a - b);
+  const gaps = [];
+  let prevT = 0;
+  for (const t of times) { gaps.push(t - prevT); prevT = t; }
+  const interWord = gaps.slice(1);
+  let blanks = gaps.filter((g) => g > 5000).length;
+  if (durationMs - prevT > 5000 && times.length) blanks += 1; // trailing silence
+  return {
+    count: times.length,
+    firstLatencyMs: times.length ? Math.round(times[0]) : null,
+    medianGapMs: interWord.length ? Math.round(median(interWord)) : null,
+    blanks,
+  };
+}
+
+// ---------- matching speech transcripts against the known word list ----------
+
+const FILLERS = new Set([
   'de', 'het', 'een', 'en', 'of', 'eh', 'ehm', 'uh', 'uhm', 'um', 'hm', 'hmm', 'nog', 'ook', 'dan',
-  'is', 'ja', 'nee', 'o', 'oh', 'ok', 'oke', 'okay', 'nou', 'eens', 'even', 'die', 'dat', 'wat',
-  'ik', 'weet', 'niet', 'meer', 'maar', 'en', 'eeh', 'ehh', 'euh',
+  'is', 'ja', 'nee', 'o', 'oh', 'ok', 'oke', 'nou', 'even', 'die', 'dat', 'wat', 'ik', 'weet', 'niet',
+  'meer', 'maar', 'eeh', 'euh', 'volgens', 'mij', 'was', 'er', 'ook',
 ]);
 
 export function normalize(s) {
-  return String(s)
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .replace(/[^a-z]/g, '');
+  return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, '');
 }
 
 export function tokenize(text) {
-  return String(text)
-    .split(/[\s,.;:!?"'()\-/]+/)
-    .map(normalize)
-    .filter((t) => t.length >= 2 && !STOPWORDS.has(t));
+  return String(text).split(/[\s,.;:!?"'()\-/]+/).map(normalize).filter((t) => t.length >= 2 && !FILLERS.has(t));
+}
+
+/** Rough Dutch sound-alike key: merges spellings a recogniser confuses (ij/ei, au/ou, dt/d/t, v/f, z/s, ch/g, double vowels). */
+export function phoneticKey(word) {
+  return normalize(word)
+    .replace(/ij|y/g, 'ei')
+    .replace(/auw|ouw|au/g, 'ou')
+    .replace(/sch/g, 'sg')
+    .replace(/ch/g, 'g')
+    .replace(/ph/g, 'f')
+    .replace(/c(?=[eiy])/g, 's')
+    .replace(/c/g, 'k')
+    .replace(/q/g, 'k')
+    .replace(/x/g, 'ks')
+    .replace(/dt$|d$/g, 't')
+    .replace(/v/g, 'f')
+    .replace(/z/g, 's')
+    .replace(/w/g, 'f')
+    .replace(/([aeiou])\1+/g, '$1')
+    .replace(/([^aeiou])\1+/g, '$1');
 }
 
 export function levenshtein(a, b) {
@@ -35,62 +69,34 @@ export function levenshtein(a, b) {
   return prev[n];
 }
 
-/** Does a recognised token count as recalling `target`? Allows plural/diminutive and small ASR spelling slips. */
-export function matchesWord(token, target) {
+/** Does one recognised token count as `target`? Plural/diminutive forms and sound-alike slips count. */
+export function tokenMatches(token, target) {
   const t = normalize(token), w = normalize(target);
   if (!t || !w) return false;
   if (t === w) return true;
   if (t.startsWith(w) && t.length - w.length <= 4) return true; // appels, bruggen, huisje
-  if (w.length >= 5 && levenshtein(t, w) <= 1) return true;
+  const kt = phoneticKey(t), kw = phoneticKey(w);
+  if (kt === kw) return true;
+  if (kw.length >= 5 && levenshtein(kt, kw) <= 1) return true; // short words: too many real neighbours (kat/kast)
+  if (kw.length >= 7 && levenshtein(kt, kw) <= 2) return true;
   return false;
 }
 
-/** Returns which list positions were recalled and which tokens were intrusions. */
-export function scoreRecall(tokens, words) {
-  const recalled = words.map(() => false);
-  const intrusions = [];
-  for (const tok of tokens) {
-    const idx = words.findIndex((w, i) => !recalled[i] && matchesWord(tok, w));
-    if (idx >= 0) recalled[idx] = true;
-    else if (!words.some((w) => matchesWord(tok, w))) intrusions.push(tok);
-  }
-  return { recalled, intrusions };
-}
-
-function sameStem(a, b) {
-  const [s, l] = a.length <= b.length ? [a, b] : [b, a];
-  return s.length >= 3 && l.startsWith(s);
-}
-
 /**
- * events: [{w, t}] unique normalised words with first-seen time in ms since task start.
- * removed: words the user struck in review.
+ * Which list words occur anywhere in the recogniser's output. `texts` = every transcript version seen
+ * (finals, interims, alternatives). Because the list is known, run-together words ("appelfiets")
+ * are found by searching the space-less text too.
  */
-export function scoreFluency(events, prompt, durationMs = 60000, removed = []) {
-  const struck = new Set(removed);
-  const sorted = events.slice().sort((a, b) => a.t - b.t);
-  const valid = [];
-  for (const e of sorted) {
-    if (struck.has(e.w)) continue;
-    if (prompt.mode === 'letter' && !e.w.startsWith(prompt.letter.toLowerCase())) continue;
-    if (valid.some((v) => sameStem(v.w, e.w))) continue;
-    valid.push(e);
-  }
-  const times = valid.map((e) => e.t);
-  const gaps = [];
-  let prevT = 0;
-  for (const t of times) { gaps.push(t - prevT); prevT = t; }
-  const interWord = gaps.slice(1);
-  let blanks = gaps.filter((g) => g > 5000).length;
-  if (durationMs - prevT > 5000) blanks += 1; // trailing silence
-  return {
-    valid: valid.length,
-    words: valid.map((e) => e.w),
-    first15: times.filter((t) => t <= 15000).length,
-    firstLatencyMs: times.length ? Math.round(times[0]) : null,
-    medianGapMs: interWord.length ? Math.round(median(interWord)) : null,
-    blanks,
-  };
+export function detectListWords(texts, words) {
+  const tokens = [...new Set(texts.flatMap(tokenize))];
+  const glued = texts.map((t) => phoneticKey(String(t).replace(/\s+/g, '')));
+  const hit = words.map((w) => {
+    if (tokens.some((t) => tokenMatches(t, w))) return true;
+    const k = phoneticKey(w);
+    return k.length >= 4 && glued.some((g) => g.includes(k));
+  });
+  const extra = tokens.filter((t) => !words.some((w) => tokenMatches(t, w)));
+  return { hit, extra };
 }
 
 // ---------- descriptive stats ----------
@@ -178,7 +184,6 @@ export const METRICS = {
   pvtLapses: (s) => neg(s.pvt?.summary?.lapses),
   symRT: (s) => neg(logOrNull(s.symbols?.summary?.medianRT)),
   memory: (s) => (s.memory ? s.memory.immediate + s.memory.delayed : null),
-  fluency: (s) => s.fluency?.summary?.valid,
   fogNow: (s) => neg(s.now?.fog),
   fogDay: (s) => neg(s.yesterday?.dayFog),
 };
@@ -229,27 +234,18 @@ export function computeIndices(sessions) {
   const phase = full.length < RUN_IN ? 'runin' : post.length < BASELINE_N ? 'baseline' : 'tracking';
 
   const refs = {};
-  for (const [k, f] of Object.entries(METRICS)) {
-    if (k === 'fluency') continue;
-    refs[k] = robustScale(base.map(f));
-  }
-  // Fluency forms differ in difficulty: separate reference per mode.
-  const fluRef = {
-    letter: robustScale(base.filter((s) => s.fluency?.prompt?.mode === 'letter').map(METRICS.fluency)),
-    category: robustScale(base.filter((s) => s.fluency?.prompt?.mode === 'category').map(METRICS.fluency)),
-  };
+  for (const [k, f] of Object.entries(METRICS)) refs[k] = robustScale(base.map(f));
 
   const runInEnd = full[RUN_IN - 1]?.date;
   const out = days.map((s) => {
     const zz = {};
     for (const k of Object.keys(METRICS)) {
-      zz[k] = k === 'fluency' ? z(METRICS.fluency(s), fluRef[s.fluency?.prompt?.mode]) : z(METRICS[k](s), refs[k]);
+      zz[k] = z(METRICS[k](s), refs[k]);
     }
     const domains = {
       attention: avg([zz.pvtSpeed, zz.pvtLapses]),
       speed: zz.symRT,
       memory: zz.memory,
-      retrieval: zz.fluency,
     };
     const usable = s.valid;
     return {

@@ -1,6 +1,6 @@
-// Word-list encoding, spoken/typed recall (immediate + delayed) and verbal fluency.
+// Word-list encoding and the say-aloud-and-tap recall screen (with background speech recognition).
 import { h, taskScreen, sleep } from '../ui.js';
-import { SpeechListener, TypedListener, asrSupported, say } from '../speech.js';
+import { say, SpeechListener, asrSupported } from '../speech.js';
 
 export const WORD_MS = 1500; // onset-to-onset per word
 const WORD_VISIBLE_MS = 1250;
@@ -26,96 +26,98 @@ export async function encodeList(words) {
   await sleep(Math.max(0, t0 + words.length * WORD_MS - performance.now()));
 }
 
+const DEBOUNCE_MS = 250; // nobody says two words within 250 ms: treat as an accidental double tap
+
+const MIC_WAIT_MAX_MS = 2500; // start the clock anyway if the microphone takes longer than this
+
+const LIGHT = {
+  starting: ['Microfoon start…', ''],
+  listening: ['Praat maar', 'live'],
+  restarting: ['Luistert…', 'live'],
+  off: ['Geen spraakherkenning: alleen tikken telt', 'off'],
+};
+
 /**
- * Timed free-response screen. mode 'speech' falls back to typing if speech recognition fails.
- * Returns { words:[{w,t}], mode, errors }.
+ * Timed recall: say each word aloud and tap once per word, while speech recognition listens in
+ * the background. The clock starts once the microphone is actually on, so the first word isn't lost.
+ * The transcript is only shown in the end-of-session review (the list is never shown in between).
+ * Resolves { taps, undone, durationMs, endedEarly, speech: {transcript, texts, errors, fatal, restarts} }.
  */
-export function freeResponse({ title, subtitle = '', seconds, inputMode, allowDone = true }) {
+export function recallTask({ title, subtitle = '', seconds, hints = [] }) {
   return new Promise((resolve) => {
-    const useSpeech = inputMode === 'speech' && asrSupported();
+    const taps = [];
+    let undone = 0;
+    let ended = false;
+    let t0 = null;
+    let tick = null;
     const timer = h('div.timer', fmt(seconds));
-    const status = h('div.listen');
-    const typedWrap = h('div.stack', { style: { width: '100%', maxWidth: '420px' } });
+    const count = h('div.tapcount', '0');
     const bar = h('div');
-    const done = allowDone ? h('button', { style: { marginTop: '28px' }, onclick: () => end() }, 'Klaar') : null;
+    const dot = h('span.dot');
+    const lightLabel = h('span', '');
+    const pad = h('button.tappad', { type: 'button' }, count, h('span.small', 'tik per woord'));
+    const undo = h('button.link', { type: 'button', onclick: () => { if (taps.length) { taps.pop(); undone++; paint(); } } }, 'Oeps, laatste tik weg');
+    const done = h('button', { onclick: () => end(true) }, 'Klaar');
     taskScreen(
       h('div.topbar', h('span', subtitle), timer),
       h('div.prompt', title),
-      status,
-      typedWrap,
-      done,
+      h('p.muted.small.center', { style: { margin: '8px 0 6px' } }, 'Zeg elk woord hardop en tik één keer per woord.'),
+      h('div.listen', { style: { margin: '0 0 16px' } }, dot, lightLabel),
+      pad,
+      h('div.row', { style: { marginTop: '14px', gap: '24px' } }, undo, done),
       h('div.progress', bar),
     );
 
-    let listener;
-    let typed;
-    let usedMode = useSpeech ? 'speech' : 'typed';
-    let ended = false;
-
-    const startTyped = (carry = [], fallback = false) => {
-      usedMode = fallback ? 'mixed' : 'typed';
-      status.replaceChildren(h('span.small', 'Typ elk woord en druk op spatie.'));
-      const input = h('input', { type: 'text', autocapitalize: 'none', autocomplete: 'off', spellcheck: false, enterkeyhint: 'next' });
-      const chips = h('div.typed-list');
-      typedWrap.replaceChildren(input, chips);
-      typed = new TypedListener({
-        input,
-        onChange: (n, list) => chips.replaceChildren(...list.map((x) => h('span.tag', x.w))),
-      });
-      typed.carry = carry;
-      typed.start();
+    const setLight = (state) => {
+      const [label, cls] = LIGHT[state] || LIGHT.off;
+      lightLabel.textContent = label;
+      dot.className = `dot ${cls}`;
+      if ((state === 'listening' || state === 'off') && t0 === null) startClock();
     };
 
-    if (useSpeech) {
-      const dot = h('span.dot.live');
-      const label = h('span', 'Luistert… 0 woorden');
-      status.replaceChildren(dot, label);
-      listener = new SpeechListener({
-        onChange: (n) => {
-          label.textContent = `Luistert… ${n} woorden`;
-          if (listener.fatal && !typed) {
-            const carry = listener.words();
-            listener.stop();
-            startTyped(carry, true);
-          }
-        },
-      });
+    let listener = null;
+    if (asrSupported()) {
+      listener = new SpeechListener({ hints, onState: setLight });
       listener.start();
+      setTimeout(() => { if (t0 === null) startClock(); }, MIC_WAIT_MAX_MS);
     } else {
-      startTyped();
+      setLight('off');
     }
 
-    const t0 = performance.now();
-    const tick = setInterval(() => {
-      const el = (performance.now() - t0) / 1000;
-      timer.textContent = fmt(Math.max(0, Math.ceil(seconds - el)));
-      bar.style.width = `${Math.min(100, (el / seconds) * 100)}%`;
-      if (el >= seconds) end();
-    }, 200);
+    function startClock() {
+      t0 = performance.now();
+      tick = setInterval(() => {
+        const el = (performance.now() - t0) / 1000;
+        timer.textContent = fmt(Math.max(0, Math.ceil(seconds - el)));
+        bar.style.width = `${Math.min(100, (el / seconds) * 100)}%`;
+        if (el >= seconds) end(false);
+      }, 100);
+    }
 
-    async function end() {
+    const paint = () => { count.textContent = String(taps.length); };
+    pad.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      if (ended) return;
+      if (t0 === null) startClock(); // tapping means you've started talking
+      const t = Math.max(0, (e.timeStamp > 0 && e.timeStamp < 1e11 ? e.timeStamp : performance.now()) - t0);
+      if (taps.length && t - taps[taps.length - 1] < DEBOUNCE_MS) return;
+      taps.push(Math.round(t));
+      paint();
+      pad.classList.remove('flash');
+      void pad.offsetWidth;
+      pad.classList.add('flash');
+    }, { passive: false });
+
+    async function end(early) {
       if (ended) return;
       ended = true;
       clearInterval(tick);
-      status.replaceChildren(h('span.muted', 'Even afronden…'));
-      if (done) done.disabled = true;
-      let words = [];
-      const errors = listener ? listener.errors : [];
-      if (typed) {
-        const offset = listener ? Math.round(performance.now() - listener.t0) - Math.round(performance.now() - typed.t0) : 0;
-        const tw = (await typed.stop()).map((x) => ({ w: x.w, t: x.t + offset }));
-        words = mergeUnique(typed.carry || [], tw);
-      } else if (listener) {
-        words = await listener.stop();
-      }
-      resolve({ words, mode: usedMode, errors: [...new Set(errors)], durationMs: Math.round(performance.now() - t0) });
+      done.disabled = true;
+      const durationMs = t0 === null ? 0 : Math.round(performance.now() - t0);
+      const speech = listener ? await listener.stop() : { transcript: '', texts: [], errors: ['unsupported'], fatal: 'unsupported', restarts: 0 };
+      resolve({ taps, undone, durationMs, endedEarly: early, speech });
     }
   });
-}
-
-function mergeUnique(a, b) {
-  const seen = new Set();
-  return [...a, ...b].filter((x) => (seen.has(x.w) ? false : seen.add(x.w))).sort((x, y) => x.t - y.t);
 }
 
 function fmt(s) {

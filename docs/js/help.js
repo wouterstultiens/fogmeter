@@ -19,6 +19,15 @@ export function helpView() {
       h('p.small.muted', 'De eerste 14 sessies zijn inwerken (je wordt vanzelf beter). Daarna 28 dagen basislijn: verander dan nog niets. Daarna kun je experimenten doen.'),
     ),
 
+    section('Eenmalig: betere spraakherkenning',
+      steps(
+        'Instellingen → Algemeen → Toetsenbord → Dicteer aan (Safari gebruikt dezelfde dicteerfunctie).',
+        'Zorg dat Nederlands als toetsenbord/dicteertaal aanstaat; op nieuwere iPhones wordt dan het Nederlandse model op het toestel geladen (sneller, beter, offline).',
+        'Tijdens het opnoemen: wacht op het groene "Praat maar", zeg elk woord los met een korte pauze, telefoon ± 30 cm voor je gezicht, stille kamer.',
+      ),
+      h('p.small.muted', 'Hoort de app iets verkeerd, geen probleem: aan het eind zie je wat hij hoorde en vink je zelf aan wat klopt.'),
+    ),
+
     section('Eenmalig: Safari',
       steps(
         'Instellingen → Apps → Safari → Microfoon → "Sta toe" (anders vraagt Safari elke dag om toestemming).',
@@ -65,11 +74,10 @@ export function helpView() {
 
     section('Wat wordt gemeten',
       steps(
-        'Woordenlijst: 12 woorden onthouden, direct en na ± 5 min (geheugen).',
+        'Woordenlijst: 12 woorden onthouden, direct en na ± 4 min (geheugen). Je tikt per woord; de app luistert mee en jij controleert aan het eind.',
         'Reactietest (3 min): aandacht en "wegvallers" (missers ≥ 355 ms).',
         'Symbolen: verwerkingssnelheid ("traag hoofd").',
-        'Woorden noemen (1 min): woorden vinden, stiltes > 5 s ("blanco").',
-        'Automatisch: tik-nauwkeurigheid (onhandigheid), tijd sinds wakker worden.',
+        'Automatisch: tik-nauwkeurigheid (onhandigheid), tijd sinds wakker worden, hoe snel je eerste woord komt.',
       ),
       h('p.small.muted', 'Testscores en hoe je je voelt worden apart bijgehouden: ze lopen vaak niet gelijk op, en beide zijn informatief.'),
     ),

@@ -46,17 +46,39 @@ export function nextFrame() {
   return new Promise((r) => requestAnimationFrame(r));
 }
 
-/** Instruction screen with a single start button; resolves on tap. */
-export function instructions(title, lines, buttonLabel = 'Start', extra = null, onTap = null) {
+/**
+ * Instruction screen with a single start button; resolves on tap.
+ * autoSeconds > 0: starts by itself after that many seconds (tap to start sooner).
+ */
+export function instructions(title, lines, buttonLabel = 'Start', extra = null, onTap = null, autoSeconds = 0) {
   return new Promise((resolve) => {
+    let timer = null;
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      clearInterval(timer);
+      onTap?.();
+      resolve();
+    };
+    const btn = h('button.primary', { style: { marginTop: '12px' }, onclick: go }, buttonLabel);
     taskScreen(
       h('div.stack', { style: { maxWidth: '440px', width: '100%' } },
         h('h2', title),
         ...lines.map((l) => h('p.muted', l)),
         extra,
-        h('button.primary', { style: { marginTop: '12px' }, onclick: () => { onTap?.(); resolve(); } }, buttonLabel),
+        btn,
       ),
     );
+    if (autoSeconds > 0) {
+      let left = autoSeconds;
+      btn.textContent = `${buttonLabel} (${left})`;
+      timer = setInterval(() => {
+        left -= 1;
+        if (left <= 0) go();
+        else btn.textContent = `${buttonLabel} (${left})`;
+      }, 1000);
+    }
   });
 }
 

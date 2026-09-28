@@ -1,18 +1,18 @@
 # Fogmeter
 
-A ~7-minute daily morning test for tracking brain fog. It runs as a free web app on iPhone (Safari),
+A ~6-minute daily morning test for tracking brain fog. It runs as a free web app on iPhone (Safari),
 opened through an iOS Shortcut. Why it measures what it measures: see [DESIGN.md](DESIGN.md).
 
 **The session:**
 1. Check-in: fog right now, sleep quality, sleep times
 2. Learn a 12-word list (Dutch)
-3. Immediate recall
+3. First recall: say the words aloud and tap once per word, while speech recognition listens in the background
 4. 3-minute reaction-time test (PVT-B)
 5. Symbol Search
-6. 60 s word fluency
-7. Delayed recall
+6. Second recall (same as step 3)
+7. Review: both transcripts, with per-word "1st / 2nd time" ticks prefilled from speech recognition. You only fix mistakes.
+   The list is shown only here, at the end.
 8. Three "yesterday" questions + an optional note
-9. A quick check of what speech recognition heard
 
 ## Setup (one time, ~15 min)
 

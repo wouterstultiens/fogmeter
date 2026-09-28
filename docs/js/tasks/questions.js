@@ -1,6 +1,6 @@
-// "Now" check-in (before tests), "Yesterday" block (after tests) and the end-of-session review.
+// "Now" check-in (before tests), "Yesterday" block (after tests) and the word-list review.
 import { h, render, choiceScale } from '../ui.js';
-import { matchesWord } from '../scoring.js';
+import { detectListWords } from '../scoring.js';
 
 const FOG = Array.from({ length: 11 }, (_, i) => ({ label: String(i), value: i }));
 const SLEEP_Q = ['zeer slecht', 'slecht', 'redelijk', 'goed', 'zeer goed'].map((label, i) => ({ label, value: i + 1 }));
@@ -96,60 +96,53 @@ export function yesterday({ steps = null } = {}) {
 }
 
 /**
- * End-of-session check of what speech recognition heard. Shown only after delayed recall,
- * so the list is never re-exposed before it is tested.
+ * End-of-session review, right after the second recall (the list is never shown before this).
+ * Shows both transcripts and one row per list word with "1e / 2e keer" toggles, prefilled from
+ * speech recognition. You only fix what it got wrong.
+ * first/second: recallTask results. Resolves { first: boolean[], second: boolean[], auto, edits }.
  */
-export function review({ words, immediate, delayed, fluency }) {
+export function review(words, first, second) {
   return new Promise((resolve) => {
-    const imm = words.map((w) => immediate.some((t) => matchesWord(t, w)));
-    const del = words.map((w) => delayed.some((t) => matchesWord(t, w)));
-    const autoImm = imm.slice();
-    const autoDel = del.slice();
-    const removed = new Set();
+    const auto1 = detectListWords(first.speech.texts, words);
+    const auto2 = detectListWords(second.speech.texts, words);
+    const sel = [auto1.hit.slice(), auto2.hit.slice()];
 
-    const toggle = (arr, i) => {
+    const counters = [h('span.tag', ''), h('span.tag', '')];
+    const paint = () => {
+      [first, second].forEach((r, k) => {
+        const n = sel[k].filter(Boolean).length;
+        counters[k].textContent = `${n} ✓ · ${r.taps.length} getikt`;
+        counters[k].className = n === r.taps.length ? 'tag ok' : 'tag warn';
+      });
+    };
+    const toggle = (k, i) => {
       const b = h('button.toggle', { type: 'button' }, '');
-      const paint = () => { b.textContent = arr[i] ? '✓' : '–'; b.classList.toggle('selected', arr[i]); };
-      b.addEventListener('click', () => { arr[i] = !arr[i]; paint(); });
-      paint();
+      const draw = () => { b.textContent = sel[k][i] ? '✓' : '–'; b.classList.toggle('selected', sel[k][i]); };
+      b.addEventListener('click', () => { sel[k][i] = !sel[k][i]; draw(); paint(); });
+      draw();
       return b;
     };
 
-    const grid = h('div.review-grid', h('span'), h('span.hdr', 'direct'), h('span.hdr', 'later'));
-    words.forEach((w, i) => grid.append(h('span', w), toggle(imm, i), toggle(del, i)));
-
-    const extra = (list) => list.filter((t) => !words.some((w) => matchesWord(t, w)));
-    const heard = (label, list) => (list.length ? h('p.small.muted', `${label} gehoord: ${list.join(', ')}`) : null);
-
-    const fluChips = h('div.chips', ...fluency.words.map((x) => {
-      const c = h('button.chip', { type: 'button' }, x.w);
-      c.addEventListener('click', () => {
-        if (removed.has(x.w)) removed.delete(x.w); else removed.add(x.w);
-        c.classList.toggle('struck', removed.has(x.w));
-      });
-      return c;
-    }));
+    const grid = h('div.review-grid', h('span'), h('span.hdr', '1e keer'), h('span.hdr', '2e keer'));
+    words.forEach((w, i) => grid.append(h('span', w), toggle(0, i), toggle(1, i)));
+    const heard = (label, r) => h('div.stack', { style: { gap: '4px' } },
+      h('p.small', h('strong', label), ' ', r.speech.fatal ? h('span.muted', '(geen spraakherkenning)') : null),
+      h('p.small.muted', r.speech.transcript || '—'));
 
     render(
       h('h2', 'Controle'),
-      h('p.muted.small', 'Klopt wat de app heeft gehoord? Tik om te verbeteren. Meestal hoeft er niets te veranderen.'),
-      h('div.card',
-        h('h3', 'Woordenlijst'),
-        grid,
-        heard('Ook', extra(immediate.concat(delayed)).filter((v, i, a) => a.indexOf(v) === i)),
-      ),
-      h('div.card',
-        h('h3', `Woorden noemen: ${fluency.prompt.mode === 'letter' ? 'letter ' + fluency.prompt.letter : fluency.prompt.category}`),
-        fluency.words.length ? fluChips : h('p.muted', 'Geen woorden gehoord.'),
-        h('p.small.muted', 'Tik op woorden die niet gelden (namen, verkeerd gehoord) om ze door te strepen.'),
-      ),
+      h('p.muted.small', 'Vooringevuld op basis van wat de app hoorde. Tik om te verbeteren. Het aantal ✓ hoort ongeveer gelijk te zijn aan je aantal tikken.'),
+      h('div.card', grid, h('div.row', h('span.grow.small.muted', '1e / 2e keer'), counters[0], counters[1])),
+      h('div.card', h('h3', 'Wat de app hoorde'), heard('1e keer:', first), heard('2e keer:', second)),
       h('button.primary', {
         onclick: () => resolve({
-          immediate: imm, delayed: del,
-          edits: imm.filter((v, i) => v !== autoImm[i]).length + del.filter((v, i) => v !== autoDel[i]).length,
-          fluencyRemoved: [...removed],
+          first: sel[0],
+          second: sel[1],
+          auto: { first: auto1.hit, second: auto2.hit, extraFirst: auto1.extra, extraSecond: auto2.extra },
+          edits: sel[0].filter((v, i) => v !== auto1.hit[i]).length + sel[1].filter((v, i) => v !== auto2.hit[i]).length,
         }),
       }, 'Opslaan'),
     );
+    paint();
   });
 }

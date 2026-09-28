@@ -1,5 +1,6 @@
-// End-to-end smoke test: plays one full session (typed answers, shortened timings via ?e2e).
-// Run: node tests/e2e.mjs   (needs playwright + a local server on :8080, see package.json "serve")
+// End-to-end smoke test: plays one full session with shortened timings (?e2e) and a fake speech
+// recogniser that returns deliberately messy transcripts (glued words, plurals, an intrusion).
+// Run: npm run serve (in another shell), then: node tests/e2e.mjs
 import { chromium } from 'playwright';
 
 const BASE = process.env.BASE || 'http://localhost:8080/';
@@ -13,18 +14,42 @@ const page = await ctx.newPage();
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
-await page.addInitScript(() => localStorage.setItem('fogmeter.config', JSON.stringify({ inputMode: 'typed' })));
+
+// Fake Web Speech API: window.__emit(text) delivers a result to the active recogniser.
+await page.addInitScript(() => {
+  let active = null;
+  class FakeRecognition {
+    start() {
+      active = this;
+      this.results = [];
+      setTimeout(() => { this.onstart?.(); this.onaudiostart?.(); }, 50);
+    }
+    stop() { setTimeout(() => this.onend?.(), 20); if (active === this) active = null; }
+    abort() { if (active === this) active = null; }
+  }
+  window.SpeechRecognition = FakeRecognition;
+  window.webkitSpeechRecognition = FakeRecognition;
+  window.__emit = (text) => {
+    if (!active) return false;
+    const res = [{ transcript: text }];
+    active.results.push(res);
+    active.onresult?.({ results: active.results });
+    return true;
+  };
+});
 
 let shot = 0;
 const snap = async (name) => { if (SHOTS) await page.screenshot({ path: `${SHOTS}/${String(++shot).padStart(2, '0')}-${name}.png` }); };
 const clickText = (t) => page.getByRole('button', { name: t, exact: true }).first().click();
+const tap = async (n) => { for (let i = 0; i < n; i++) { await page.locator('.tappad').click(); await page.waitForTimeout(300); } };
+const say = async (text) => { await page.waitForSelector('.dot.live'); await page.evaluate((t) => window.__emit(t), text); };
 
 const wake = new Date(Date.now() - 20 * 60000);
 await page.goto(`${BASE}?e2e&wake=${encodeURIComponent(stamp(wake))}&steps=8412`);
 await page.waitForSelector('text=Fogmeter');
 await snap('home');
 
-await clickText('Start (± 7 min)');
+await clickText('Start (± 6 min)');
 await page.waitForSelector('text=Hoe helder voelt je hoofd nu?');
 await page.locator('.scale.s11 button').nth(3).click();
 await clickText('goed');
@@ -38,7 +63,7 @@ const t0 = Date.now();
 while (Date.now() - t0 < 25000) {
   const state = await page.evaluate(() => ({
     word: document.querySelector('.bigword')?.textContent || '',
-    recall: !!document.querySelector('.prompt'),
+    recall: !!document.querySelector('.tappad'),
   }));
   if (state.word && state.word !== '+') words.add(state.word);
   if (state.recall) break;
@@ -46,15 +71,14 @@ while (Date.now() - t0 < 25000) {
 }
 console.log('words seen:', [...words].join(', '));
 if (words.size !== 12) throw new Error(`expected 12 words, saw ${words.size}`);
-
-const typeWords = async (list) => {
-  const input = page.locator('.task input[type=text]');
-  await input.waitFor();
-  for (const w of list) await input.type(`${w} `);
-};
 const list = [...words];
-await typeWords([list[0], list[1], list[2], 'banaan']);
+
+// First recall: recogniser glues two words together and hears one intrusion.
+await say(`${list[0]}${list[1]}`);
+await say(`${list[2]} banaan`);
+await tap(4);
 await snap('recall');
+if (await page.locator('text=Woordenlijst').count() && await page.locator('text=Controle').count()) throw new Error('list shown too early');
 await page.waitForSelector('text=Reactietest (3 min)', { timeout: 15000 });
 
 // PVT: respond whenever the counter is visible.
@@ -85,19 +109,19 @@ for (let i = 0; i < 4; i++) {
   await page.waitForTimeout(450);
 }
 
-// Fluency
-await page.waitForSelector('text=Woorden noemen (1 min)');
-await clickText('Start');
-const prompt = await page.locator('.prompt').textContent();
-const letter = (prompt.match(/letter ([A-Z])/) || [])[1];
-const fluWords = letter ? [`${letter}ak`, `${letter}oos`, `${letter}ier`].map((w) => w.toLowerCase()) : ['koe', 'paard', 'schaap'];
-await typeWords(fluWords);
-await snap('fluency');
-
-// Delayed recall
+// Second recall: a plural form and one normal word.
 await page.waitForSelector('text=Woordenlijst, nog een keer', { timeout: 15000 });
 await clickText('Start');
-await typeWords([list[0], list[5]]);
+await say(`${list[0]}en`);
+await say(list[5]);
+await tap(3);
+
+// Review: prefilled from the transcripts; add one word the recogniser missed.
+await page.waitForSelector('text=Controle', { timeout: 15000 });
+const prefilled = await page.evaluate(() => [...document.querySelectorAll('.review-grid .toggle')].map((b) => b.classList.contains('selected')));
+await snap('review');
+await page.locator('.review-grid .toggle').nth(6 * 2 + 1).click(); // row 7, "2e keer"
+await clickText('Opslaan');
 
 // Yesterday (activity is skipped because steps came from the Shortcut)
 await page.waitForSelector('text=Gisteren', { timeout: 15000 });
@@ -106,11 +130,6 @@ await clickText('normaal');
 await page.locator('textarea').fill('test: niets bijzonders');
 await snap('yesterday');
 await clickText('Verder');
-
-// Review
-await page.waitForSelector('text=Controle');
-await snap('review');
-await clickText('Opslaan');
 await page.waitForSelector('text=Resultaten');
 await snap('results');
 
@@ -122,23 +141,31 @@ const saved = await page.evaluate(() => new Promise((res) => {
   };
 }));
 const s = saved[saved.length - 1];
+const firstAuto = prefilled.filter((_, i) => i % 2 === 0);
+const secondAuto = prefilled.filter((_, i) => i % 2 === 1);
 const checks = {
   kind: s.kind === 'full',
   wakeFromShortcut: s.now.wakeSource === 'shortcut',
   minutesSinceWake: s.context.minutesSinceWake >= 19 && s.context.minutesSinceWake <= 25,
   steps: s.context.steps24h === 8412,
+  prefillFirst: firstAuto.filter(Boolean).length === 3 && firstAuto[0] && firstAuto[1] && firstAuto[2],
+  prefillSecond: secondAuto.filter(Boolean).length === 2 && secondAuto[0] && secondAuto[5],
   memoryImmediate: s.memory.immediate === 3,
-  memoryDelayed: s.memory.delayed === 2,
-  intrusion: s.memory.intrusionsImmediate === 1,
+  memoryDelayed: s.memory.delayed === 3,
+  reviewEdits: s.memory.reviewEdits === 1,
+  extraTaps: s.memory.extraTapsFirst === 1 && s.memory.extraTapsSecond === 0,
+  taps: s.recall.first.taps.length === 4 && s.recall.second.taps.length === 3,
+  transcriptKept: s.recall.first.speech.transcript.includes('banaan'),
+  intrusionSeen: s.memory.auto.extraFirst.includes('banaan'),
   pvtTrials: s.pvt.summary.n >= 1,
   symbolsCorrect: s.symbols.summary.accuracy === 1,
-  fluency: s.fluency.summary.valid === 3,
   yesterday: s.yesterday.dayFog === 2 && s.yesterday.stress === 2 && s.yesterday.note.startsWith('test'),
   motor: s.motor.taps > 0,
 };
-console.log(JSON.stringify({ checks, valid: s.valid, reasons: s.invalidReasons, pvt: s.pvt.summary, symbols: s.symbols.summary, fluency: s.fluency.summary }, null, 1));
+console.log(JSON.stringify({ checks, valid: s.valid, reasons: s.invalidReasons, memory: s.memory, pvt: s.pvt.summary }, null, 1));
 await page.getByRole('button', { name: 'Klaar' }).click();
-await page.waitForSelector('text=Vandaag gedaan ✓');
+// A session the robot made invalid (e.g. an early tap in the 6 s PVT) offers a retake instead.
+await page.waitForSelector(s.valid ? 'text=Vandaag gedaan ✓' : 'text=Je mag opnieuw', { timeout: 10000 });
 await snap('home-done');
 console.log('errors:', errors);
 await browser.close();

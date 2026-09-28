@@ -1,5 +1,4 @@
 // Speech input (Web Speech API, Dutch) and text-to-speech.
-import { tokenize } from './scoring.js';
 
 const Recognition = typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition);
 
@@ -7,63 +6,89 @@ export function asrSupported() {
   return !!Recognition;
 }
 
+const FATAL = new Set(['not-allowed', 'service-not-allowed', 'language-not-supported', 'audio-capture']);
+
 /**
- * Collects unique spoken words with the time each was first heard.
- * iOS stops recognition after pauses and sometimes repeats results, so we restart automatically
- * and keep, per recognition instance, only its latest transcript (drops interim guesses that got revised).
+ * Listens for the whole recall window and keeps everything the recogniser ever proposed.
+ * - iOS stops after pauses: we restart immediately (with back-off if it keeps erroring).
+ * - Every interim version and every alternative is kept, because the word list is known and
+ *   matching against all guesses catches words the final transcript dropped or garbled.
+ * onState('starting' | 'listening' | 'restarting' | 'off') drives the "you can talk now" light.
  */
 export class SpeechListener {
-  constructor({ lang = 'nl-NL', onChange } = {}) {
+  constructor({ lang = 'nl-NL', hints = [], onState, onText } = {}) {
     this.lang = lang;
-    this.onChange = onChange;
-    this.instances = []; // latest token list per instance
-    this.firstSeen = new Map();
+    this.hints = hints;
+    this.onState = onState;
+    this.onText = onText;
+    this.latest = []; // latest full transcript per recogniser instance
+    this.seen = new Set(); // every transcript/alternative string seen
     this.errors = [];
     this.fatal = null;
     this.running = false;
+    this.restarts = 0;
+    this.failStreak = 0;
   }
 
   start() {
     this.t0 = performance.now();
     this.running = true;
+    this.onState?.('starting');
     this._spawn();
   }
 
   _spawn() {
     if (!this.running) return;
     const rec = new Recognition();
-    const slot = this.instances.push([]) - 1;
+    const slot = this.latest.push('') - 1;
     rec.lang = this.lang;
     rec.continuous = true;
     rec.interimResults = true;
-    rec.maxAlternatives = 1;
+    rec.maxAlternatives = 5;
+    // Contextual biasing where the browser supports it (ignored elsewhere).
+    try {
+      if (this.hints.length && 'phrases' in rec && window.SpeechRecognitionPhrase) {
+        rec.phrases = this.hints.map((p) => new window.SpeechRecognitionPhrase(p, 5));
+      }
+    } catch { /* not supported */ }
+    let gotAudio = false;
+    rec.onaudiostart = () => { gotAudio = true; this.failStreak = 0; this.onState?.('listening'); };
+    rec.onstart = () => { if (!gotAudio) this.onState?.('listening'); };
     rec.onresult = (e) => {
       let text = '';
-      for (let i = 0; i < e.results.length; i++) text += ' ' + e.results[i][0].transcript;
-      const toks = tokenize(text);
-      const now = performance.now() - this.t0;
-      for (const t of toks) if (!this.firstSeen.has(t)) this.firstSeen.set(t, now);
-      this.instances[slot] = toks;
-      this.onChange?.(this.words().length);
+      for (let i = 0; i < e.results.length; i++) {
+        const res = e.results[i];
+        text += ' ' + res[0].transcript;
+        for (let a = 0; a < res.length; a++) if (res[a]?.transcript) this.seen.add(res[a].transcript.trim());
+      }
+      this.latest[slot] = text.trim();
+      this.seen.add(text.trim());
+      this.onText?.(this.transcript());
     };
     rec.onerror = (e) => {
       this.errors.push(e.error);
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'language-not-supported') {
-        this.fatal = e.error;
-        this.onChange?.(this.words().length);
-      }
+      if (FATAL.has(e.error)) { this.fatal = e.error; this.onState?.('off'); }
+      else if (e.error !== 'no-speech' && e.error !== 'aborted') this.failStreak++;
     };
     rec.onend = () => {
-      if (this.running && !this.fatal) setTimeout(() => this._spawn(), 30);
+      if (!this.running || this.fatal) return;
+      if (this.restarts++ > 60) { this.onState?.('off'); return; }
+      this.onState?.('restarting');
+      const delay = Math.min(2000, this.failStreak * 250);
+      setTimeout(() => this._spawn(), delay);
     };
     this.rec = rec;
-    try { rec.start(); } catch (err) { this.fatal = String(err); }
+    try { rec.start(); } catch (err) { this.fatal = String(err); this.onState?.('off'); }
   }
 
-  /** Unique words (union over instances) with first-seen time, in order heard. */
-  words() {
-    const set = new Set(this.instances.flat());
-    return [...set].map((w) => ({ w, t: Math.round(this.firstSeen.get(w) ?? 0) })).sort((a, b) => a.t - b.t);
+  /** Readable transcript: latest text of each recogniser instance. */
+  transcript() {
+    return this.latest.filter(Boolean).join(' · ');
+  }
+
+  /** Every string the recogniser proposed (for matching against the known list). */
+  allTexts() {
+    return [...this.seen];
   }
 
   /** Stops listening; waits briefly so the final result can still arrive. */
@@ -71,43 +96,10 @@ export class SpeechListener {
     this.running = false;
     const rec = this.rec;
     try { rec?.stop(); } catch { /* ignore */ }
-    await new Promise((r) => setTimeout(r, 1200));
+    await new Promise((r) => setTimeout(r, 1000));
     try { rec?.abort(); } catch { /* ignore */ }
-    return this.words();
-  }
-}
-
-/** Typed fallback with the same interface: each word is committed on space/enter. */
-export class TypedListener {
-  constructor({ input, onChange } = {}) {
-    this.input = input;
-    this.onChange = onChange;
-    this.list = [];
-    this.fatal = null;
-    this.errors = [];
-  }
-
-  start() {
-    this.t0 = performance.now();
-    const commit = () => {
-      const toks = tokenize(this.input.value);
-      const t = Math.round(performance.now() - this.t0);
-      for (const w of toks) if (!this.list.some((x) => x.w === w)) this.list.push({ w, t });
-      this.input.value = '';
-      this.onChange?.(this.list.length, this.list);
-    };
-    this.input.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ' || e.key === ',') { e.preventDefault(); commit(); }
-    });
-    this.commit = commit;
-    this.input.focus();
-  }
-
-  words() { return this.list.slice(); }
-
-  async stop() {
-    this.commit?.();
-    return this.words();
+    this.onState?.('off');
+    return { transcript: this.transcript(), texts: this.allTexts(), errors: [...new Set(this.errors)], fatal: this.fatal, restarts: this.restarts };
   }
 }
 
@@ -149,4 +141,16 @@ export function say(word) {
 
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   speechSynthesis.onvoiceschanged = () => { voice = pickVoice(); };
+}
+
+/** Starts and immediately stops a recogniser so the permission prompt appears before any timed task. */
+export function primeMic() {
+  if (!Recognition) return;
+  try {
+    const rec = new Recognition();
+    rec.lang = 'nl-NL';
+    rec.onerror = () => {};
+    rec.start();
+    setTimeout(() => { try { rec.abort(); } catch { /* ignore */ } }, 600);
+  } catch { /* ignore */ }
 }

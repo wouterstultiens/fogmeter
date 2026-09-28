@@ -2,13 +2,13 @@ import { h, render, instructions, countdown, fmtTime } from './ui.js';
 import { db, requestPersistence } from './db.js';
 import { getConfig, setConfig, APP_VERSION } from './config.js';
 import { syncPending, testConnection, restoreAll } from './sync.js';
-import { SpeechListener, asrSupported, unlockTts, ttsVoiceName } from './speech.js';
-import { localDateStr, dayIndex, fluencyPrompt, wordListForDay, practiceList, practicePrompt } from './schedule.js';
-import { scoreRecall, scoreFluency, validity, computeIndices, median, RUN_IN } from './scoring.js';
+import { unlockTts, ttsVoiceName, primeMic, asrSupported, SpeechListener } from './speech.js';
+import { localDateStr, dayIndex, wordListForDay, practiceList } from './schedule.js';
+import { summarizeTaps, validity, computeIndices, median, RUN_IN } from './scoring.js';
 import { captureFromUrl, currentShortcutData, clearShortcutData } from './shortcut.js';
 import { runPvt } from './tasks/pvt.js';
 import { runSymbols } from './tasks/symbols.js';
-import { encodeList, freeResponse } from './tasks/verbal.js';
+import { encodeList, recallTask } from './tasks/verbal.js';
 import { checkIn, yesterday, review } from './tasks/questions.js';
 import { resultsView } from './results.js';
 import { helpView } from './help.js';
@@ -17,8 +17,8 @@ let syncState = { status: 'idle' };
 // Shortened timings for automated end-to-end tests only (?e2e in the URL).
 const E2E = new URLSearchParams(location.search).has('e2e');
 const DUR = E2E
-  ? { pvt: 6000, symbols: 4, recall: 8, fluency: 8 }
-  : { pvt: undefined, symbols: undefined, recall: 30, fluency: 60 };
+  ? { pvt: 6000, symbols: 4, recall: 6 }
+  : { pvt: undefined, symbols: undefined, recall: 30 };
 
 // ---------------- home ----------------
 
@@ -49,7 +49,7 @@ async function home() {
       : h('div.card',
         lastInvalid ? h('p.small', { style: { color: 'var(--warn)' } }, `Eerdere poging vandaag ongeldig (${lastInvalid.invalidReasons.join(', ') || 'kort'}). Je mag opnieuw.`) : null,
         h('p.muted', 'Na het mediteren. Nog geen thee. Niet storen aan, stil plekje.'),
-        h('button.primary', { onclick: () => start('full', false) }, 'Start (± 7 min)'),
+        h('button.primary', { onclick: () => start('full', false) }, 'Start (± 6 min)'),
         h('button', { onclick: () => start('short', false) }, 'Korte versie (± 4 min, slechte dag)'),
       ),
     h('div.row.wrap',
@@ -71,17 +71,10 @@ function syncLine(cfg) {
 
 // ---------------- session ----------------
 
-const TIMED = new Set(['encode', 'immediate', 'pvt', 'symbols', 'fluency', 'delayed']);
-
-function primeMic() {
-  // Triggers the microphone/speech permission prompt now instead of during a timed task.
-  if (getConfig().inputMode !== 'speech' || !asrSupported()) return;
-  try {
-    const l = new SpeechListener();
-    l.start();
-    setTimeout(() => l.stop(), 400);
-  } catch { /* ignore */ }
-}
+const TIMED = new Set(['encode', 'immediate', 'pvt', 'symbols', 'delayed']);
+// After a few sessions you know the tasks: instruction screens then start by themselves.
+const AUTO_START_AFTER = 3;
+const AUTO_START_S = 4;
 
 async function prefillTimes(sessions) {
   const cfg = getConfig();
@@ -112,18 +105,18 @@ function sleepContext(startedAt, bedTime, wakeTime) {
 }
 
 async function start(kind, practice) {
+  // Both need the user gesture of this tap (iOS): speech synthesis unlock + microphone permission.
   unlockTts();
-  primeMic();
-  const cfg = getConfig();
+  if (kind === 'full') primeMic();
   const startedAt = new Date();
   const date = localDateStr(startedAt);
-  const day = dayIndex(date);
-  const prompt = practice ? practicePrompt() : fluencyPrompt(day);
-  const words = practice ? practiceList(prompt) : wordListForDay(day);
+  const words = practice ? practiceList() : wordListForDay(dayIndex(date));
   const sessions = await db.all();
   const { prefill, steps } = await prefillTimes(sessions);
+  const experienced = sessions.filter((x) => x.kind === 'full').length >= AUTO_START_AFTER;
+  const intro = (title, lines) => instructions(title, lines, 'Start', null, null, experienced && !E2E ? AUTO_START_S : 0);
 
-  const flags = { interrupted: false, interruptedDuring: [], inputModes: {} };
+  const flags = { interrupted: false, interruptedDuring: [] };
   let current = 'checkin';
   const onVis = () => {
     if (document.hidden && TIMED.has(current)) { flags.interrupted = true; flags.interruptedDuring.push(current); }
@@ -153,24 +146,23 @@ async function start(kind, practice) {
     flags,
   };
 
+  let first = null;
   if (kind === 'full') {
     current = 'encode-instr';
-    await instructions('Woordenlijst', [
+    await intro('Woordenlijst', [
       'Je ziet en hoort 12 woorden. Onthoud er zoveel mogelijk.',
-      'Daarna noem je ze hardop op. Aan het eind van de sessie vraag ik ze nóg een keer.',
-    ], 'Start', null, unlockTts);
+      'Daarna zeg je ze hardop en tik je één keer per woord. Later in de sessie vraag ik ze nog een keer.',
+    ]);
     current = 'encode';
     await encodeList(words);
     current = 'immediate';
-    const imm = await freeResponse({ title: 'Noem alle woorden die je nog weet', subtitle: 'Woordenlijst', seconds: DUR.recall, inputMode: cfg.inputMode });
-    flags.inputModes.immediate = imm.mode;
+    first = await recallTask({ title: 'Noem alle woorden die je nog weet', subtitle: 'Woordenlijst · 1e keer', seconds: DUR.recall, hints: words });
     s.words = words;
     s.tts = ttsVoiceName();
-    s.recall = { immediate: imm };
   }
 
   current = 'pvt-instr';
-  await instructions('Reactietest (3 min)', [
+  await intro('Reactietest (3 min)', [
     'Tik zo snel mogelijk ergens op het scherm zodra de teller begint te lopen.',
     'Niet tikken vóór de teller loopt. Houd de telefoon zoals altijd, zelfde hand.',
   ]);
@@ -183,7 +175,7 @@ async function start(kind, practice) {
 
   if (kind === 'full') {
     current = 'symbols-instr';
-    await instructions('Symbolen (± 1 min)', [
+    await intro('Symbolen (± 1 min)', [
       'Bovenaan staan drie paren symbolen. Onderaan twee paren.',
       'Tik zo snel mogelijk op het onderste paar dat precies zo bovenaan staat.',
     ]);
@@ -194,54 +186,34 @@ async function start(kind, practice) {
     motorOffsets.push(...sym.motor.offsets);
     s.motor = { symbolMisses: sym.motor.misses };
 
-    current = 'fluency-instr';
-    await instructions('Woorden noemen (1 min)', [
-      prompt.mode === 'letter'
-        ? 'Je krijgt zo een letter. Noem 60 seconden lang hardop zoveel mogelijk woorden die daarmee beginnen.'
-        : 'Je krijgt zo een categorie. Noem 60 seconden lang hardop zoveel mogelijk woorden die erbij horen.',
-      prompt.mode === 'letter'
-        ? 'Geen namen van personen of plaatsen, en niet hetzelfde woord in een andere vorm (bal, ballen).'
-        : 'Niet hetzelfde woord in een andere vorm (bal, ballen).',
-    ]);
-    current = 'fluency';
-    const flu = await freeResponse({ title: prompt.label, subtitle: 'Woorden noemen', seconds: DUR.fluency, inputMode: cfg.inputMode, allowDone: false });
-    flags.inputModes.fluency = flu.mode;
-
     current = 'delayed-instr';
-    await instructions('Woordenlijst, nog een keer', ['Noem nu opnieuw alle woorden van de lijst van het begin die je nog weet.']);
+    await intro('Woordenlijst, nog een keer', ['Noem opnieuw alle woorden van de lijst van het begin die je nog weet. Zeg ze hardop en tik per woord.']);
     current = 'delayed';
-    const del = await freeResponse({ title: 'Noem alle woorden van de lijst', subtitle: 'Woordenlijst', seconds: DUR.recall, inputMode: cfg.inputMode });
-    flags.inputModes.delayed = del.mode;
-    s.recall.delayed = del;
-    s.fluency = { prompt, heard: flu.words, mode: flu.mode, errors: flu.errors };
+    const second = await recallTask({ title: 'Noem alle woorden van de lijst', subtitle: 'Woordenlijst · 2e keer', seconds: DUR.recall, hints: words });
+
+    current = 'review';
+    const rev = await review(words, first, second);
+    const n1 = rev.first.filter(Boolean).length;
+    const n2 = rev.second.filter(Boolean).length;
+    const keep = (r) => ({ taps: r.taps, undone: r.undone, durationMs: r.durationMs, speech: r.speech, timing: summarizeTaps(r.taps, DUR.recall * 1000) });
+    s.recall = { first: keep(first), second: keep(second) };
+    s.memory = {
+      immediate: n1,
+      delayed: n2,
+      retention: n1 ? Math.round((n2 / n1) * 100) / 100 : null,
+      recalledFirst: rev.first,
+      recalledSecond: rev.second,
+      auto: rev.auto,
+      reviewEdits: rev.edits,
+      // Taps beyond the confirmed words ≈ intrusions (words said that weren't on the list).
+      extraTapsFirst: Math.max(0, first.taps.length - n1),
+      extraTapsSecond: Math.max(0, second.taps.length - n2),
+    };
   }
 
   current = 'yesterday';
   document.removeEventListener('visibilitychange', onVis);
   s.yesterday = await yesterday({ steps });
-
-  if (kind === 'full') {
-    current = 'review';
-    const immW = s.recall.immediate.words.map((x) => x.w);
-    const delW = s.recall.delayed.words.map((x) => x.w);
-    const rev = await review({ words, immediate: immW, delayed: delW, fluency: { prompt, words: s.fluency.heard } });
-    const autoImm = scoreRecall(immW, words);
-    const autoDel = scoreRecall(delW, words);
-    const immN = rev.immediate.filter(Boolean).length;
-    const delN = rev.delayed.filter(Boolean).length;
-    s.memory = {
-      immediate: immN,
-      delayed: delN,
-      retention: immN ? Math.round((delN / immN) * 100) / 100 : null,
-      intrusionsImmediate: autoImm.intrusions.length,
-      intrusionsDelayed: autoDel.intrusions.length,
-      recalledImmediate: rev.immediate,
-      recalledDelayed: rev.delayed,
-      reviewEdits: rev.edits,
-    };
-    s.fluency.removed = rev.fluencyRemoved;
-    s.fluency.summary = scoreFluency(s.fluency.heard, prompt, DUR.fluency * 1000, rev.fluencyRemoved);
-  }
 
   document.removeEventListener('pointerdown', onTap, true);
   s.motor = { ...(s.motor || {}), medianOffsetPx: motorOffsets.length ? median(motorOffsets) : null, taps: motorOffsets.length };
@@ -286,9 +258,7 @@ function settings() {
   const repo = h('input', { type: 'text', value: cfg.repo, autocapitalize: 'none', spellcheck: false });
   const wake = h('input', { type: 'time', value: cfg.defaultWake });
   const bed = h('input', { type: 'time', value: cfg.defaultBed });
-  const mode = h('select', {}, h('option', { value: 'speech' }, 'Spreken'), h('option', { value: 'typed' }, 'Typen'));
-  mode.value = cfg.inputMode;
-  const save = () => setConfig({ token: token.value.trim(), repo: repo.value.trim(), defaultWake: wake.value, defaultBed: bed.value, inputMode: mode.value });
+  const save = () => setConfig({ token: token.value.trim(), repo: repo.value.trim(), defaultWake: wake.value, defaultBed: bed.value });
   const act = (label, fn) => h('button', {
     onclick: async () => {
       save();
@@ -300,9 +270,10 @@ function settings() {
   render(
     h('div.row', h('h1.grow', 'Instellingen'), h('button', { onclick: () => { save(); home(); } }, 'Klaar')),
     h('div.card',
-      h('h3', 'Antwoorden'),
-      h('label.field', 'Woorden opnoemen via', mode),
-      h('p.small.muted', asrSupported() ? 'Spraakherkenning is beschikbaar in deze browser.' : 'Spraakherkenning is niet beschikbaar: typen wordt gebruikt.'),
+      h('h3', 'Spraakherkenning'),
+      h('p.small.muted', asrSupported()
+        ? 'Beschikbaar. Tijdens het opnoemen luistert de app mee; aan het eind controleer je wat hij hoorde.'
+        : 'Niet beschikbaar in deze browser: alleen je tikken tellen, en je vinkt aan het eind zelf aan.'),
       act('Microfoon testen (5 s)', micTest),
     ),
     h('div.card',
@@ -334,9 +305,9 @@ async function micTest() {
   const l = new SpeechListener();
   l.start();
   await new Promise((r) => setTimeout(r, 5000));
-  const words = await l.stop();
-  if (l.fatal) return `Fout: ${l.fatal}. Sta microfoon en spraakherkenning toe voor deze site.`;
-  return words.length ? `Gehoord: ${words.map((w) => w.w).join(', ')}` : 'Niets gehoord. Zeg een paar woorden tijdens de test.';
+  const res = await l.stop();
+  if (res.fatal) return `Fout: ${res.fatal}. Sta microfoon en spraakherkenning toe voor deze site.`;
+  return res.transcript ? `Gehoord: ${res.transcript}` : 'Niets gehoord. Zeg een paar woorden tijdens de test.';
 }
 
 async function exportAll() {

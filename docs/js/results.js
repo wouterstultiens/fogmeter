@@ -50,9 +50,9 @@ function todayCard(s, days) {
   if (s.kind === 'full') {
     items.push(
       kpi('Symbolen (mediaan)', s.symbols?.summary?.medianRT, ' ms', (x) => x.symbols?.summary?.medianRT),
-      kpi('Woorden onthouden', s.memory ? s.memory.immediate + s.memory.delayed : NaN, ' /24', (x) => (x.memory ? x.memory.immediate + x.memory.delayed : NaN)),
-      kpi('Woorden noemen', s.fluency?.summary?.valid, '', (x) => (x.fluency?.prompt?.mode === s.fluency?.prompt?.mode ? x.fluency?.summary?.valid : NaN)),
-      kpi('Stiltes > 5 s', s.fluency?.summary?.blanks, '', (x) => x.fluency?.summary?.blanks),
+      kpi('Symbolen goed', s.symbols?.summary?.accuracy != null ? s.symbols.summary.accuracy * 100 : NaN, '%', (x) => (x.symbols?.summary?.accuracy ?? NaN) * 100),
+      kpi('Woorden 1e keer', s.memory?.immediate, ' /12', (x) => x.memory?.immediate),
+      kpi('Woorden 2e keer', s.memory?.delayed, ' /12', (x) => x.memory?.delayed),
     );
   }
   return h('div.card',
@@ -131,7 +131,6 @@ const DOMAINS = [
   ['attention', 'Aandacht (reactietest)'],
   ['speed', 'Verwerkingssnelheid (symbolen)'],
   ['memory', 'Geheugen (woordenlijst)'],
-  ['retrieval', 'Woorden vinden (noemen)'],
 ];
 
 function domainCard(ix) {
@@ -153,7 +152,7 @@ function tableCard(days) {
     h('summary', 'Tabel laatste 14 dagen'),
     h('div', { style: { overflowX: 'auto' } },
       h('table.small', { style: { width: '100%', borderCollapse: 'collapse' } },
-        h('tr', ...['Datum', 'RT', 'Mis', 'Sym', 'Onth', 'Noem', 'Mist'].map((t) => h('th', { style: { textAlign: 'left', color: 'var(--muted)' } }, t))),
+        h('tr', ...['Datum', 'RT', 'Mis', 'Sym', 'Woorden', 'Mist'].map((t) => h('th', { style: { textAlign: 'left', color: 'var(--muted)' } }, t))),
         ...recent.map((d) => {
           const s = d.session;
           return h('tr', { style: { opacity: s.valid ? 1 : 0.5 } },
@@ -162,7 +161,6 @@ function tableCard(days) {
             h('td', f(s.pvt?.summary?.lapses)),
             h('td', f(s.symbols?.summary?.medianRT)),
             h('td', s.memory ? `${s.memory.immediate}+${s.memory.delayed}` : '–'),
-            h('td', f(s.fluency?.summary?.valid)),
             h('td', f(s.now?.fog)),
           );
         }),
