@@ -1,267 +1,236 @@
-# Fogmeter: daily cognitive benchmark, design v0.1 (for approval)
+# Fogmeter: daily cognitive benchmark, design v0.2
 
-> Status: **draft for approval**. There is no app code yet. This document covers *what* to measure,
-> *how*, and *why*. It is based on a literature review (sources at the bottom).
+> Status: **draft for approval**. There is no app code yet.
+>
+> **v0.2 changes (your feedback):**
+> - Dutch language.
+> - Spoken answers are OK.
+> - No wearable.
+> - iPhone at zero cost, so a free web app on the home screen.
+> - The evening log is gone; a short "yesterday" block is folded into the morning session.
+> - Weekly and fortnightly questionnaires are dropped.
+> - A v1-first scope. Guiding principle: **consistency beats perfection**.
 
 ---
 
 ## 0. TL;DR
 
-A **~7-minute morning session** done right after meditation (~6¾ min of measured tasks). A
-cut-down ~5½-minute variant is in §12. Every day, in a fixed order:
+**One morning session of ~7 min, done right after meditation. Nothing else during the day.**
 
-| # | Module | Time | Measures | Why it's in |
-|---|--------|------|----------|-------------|
-| 1 | **Check-in**: 4 taps | ~25 s | Sleepiness (KSS), fog 0–10, mood, sleep quality | Subjective fog is a separate signal from test scores; you need both |
-| 2 | **Word list: learn + immediate recall** | ~50 s | Verbal episodic memory (encoding) | Matches "forgot the instructions"; memory is the domain most affected in long-COVID-type fog |
-| 3 | **PVT-B**: 3-min reaction-time vigilance test | 3:00 | Sustained attention, psychomotor speed, attention lapses | The most state-sensitive test known (sleep loss, fatigue, hangover); almost no practice effect |
-| 4 | **Symbol Search** | ~60 s | Processing speed ("mind feels slow") | Highly reliable, sensitive, easy daily parallel forms |
-| 5 | **Verbal fluency**: say words for 60 s | ~65 s | Word retrieval, executive search, "going blank" | Matches "mind goes blank in meetings"; timing features catch blank periods |
-| 6 | **Word list: delayed recall** | ~30 s | Retention after ~5 min of interference | Real-life analog: told something once, recall it later |
-| — | *Passive*: touch accuracy on every tap | 0 s | Fine-motor precision ("clumsiness") | Free data; a dedicated motor test isn't worth its time |
+| # | Step | Time | What it measures |
+|---|------|------|------------------|
+| 1 | **Now**: 3 taps | ~15 s | Fog right now · sleep quality · bedtime/wake time (prefilled, just confirm) |
+| 2 | **Word list**: learn 12 Dutch words, say them back | ~50 s | Verbal memory: "forgot the instructions" |
+| 3 | **Reaction test (PVT-B)**: tap when the counter starts | 3:00 | Attention lapses and speed: the most sensitive test for sleep loss and fatigue |
+| 4 | **Symbol Search** | ~60 s | Processing speed: "my mind feels slow" |
+| 5 | **Word fluency**: say as many words as you can for 60 s | ~65 s | Word retrieval: "going blank in meetings" |
+| 6 | **Word list: delayed recall** | ~30 s | Remembering after ~5 min of other work |
+| 7 | **Yesterday**: 3 taps + "anything unusual?" chips | ~15 s | Daytime fog yesterday · activity · stress · exceptions |
+| — | *Automatic*: tap accuracy, time since waking, device checks | 0 s | Clumsiness, sleep inertia, data quality |
 
-Plus a **~40-second evening log** of exposures such as sleep, alcohol, caffeine and stress, and daily lapses.
-There is also a **weekly** 4-item questionnaire and a **fortnightly** Brain Fog Scale.
+**Outputs:**
+- **Objective Cognition Index** (from the tests): the primary measure.
+- **Subjective Fog Index** (from your ratings): kept separate.
+- **Motor Precision Index** (automatic): exploratory.
 
-Scores are **not** read day by day; single days are ~50% noise. The unit of evidence is a
-**block of days** compared against **your own baseline**. The outputs are three separate indices:
-**Objective Cognition Index**, **Subjective Fog Index**, and a secondary **Motor Precision Index**.
+Results are read as **7-day blocks vs. your own baseline**, not day by day: a single day is about half noise.
 
 ---
 
 ## 1. What we're trying to capture
 
-| Your complaint | Cognitive domain | Covered by |
+| Your complaint | Domain | Covered by |
 |---|---|---|
-| "My mind feels slow" | Processing speed, psychomotor speed | Symbol Search, PVT mean speed |
-| "Mind goes blank in meetings", no good input | Attention lapses, word retrieval / generative fluency | PVT lapses + RT variability, verbal fluency (pauses > 5 s) |
-| Forgot a coworker's instructions | Verbal episodic memory (encoding under divided attention) | Word list immediate + delayed recall |
-| Clumsiness | Fine-motor precision | Passive touch-offset / miss metrics across all tasks |
-| "This is not like me" | Change vs. personal baseline | Everything is scored as z vs. *your own* baseline, not population norms |
+| "My mind feels slow" | Processing / psychomotor speed | Symbol Search, PVT speed |
+| "Mind goes blank in meetings" | Attention lapses, word retrieval | PVT lapses + RT variability; fluency pauses > 5 s |
+| Forgot a coworker's instructions | Verbal episodic memory | Word list: immediate + delayed recall |
+| Clumsiness | Fine-motor precision | Automatic tap-accuracy metrics on every tap |
+| "This is not like me" | Change vs. your own normal | Everything is scored vs. *your* baseline |
 
 ---
 
 ## 2. Research findings that drive the design
 
-1. **Attention and vigilance are the most state-sensitive domains.**
-   - Meta-analysis of sleep deprivation (Lim & Dinges 2010, 70 studies), in Hedges' g:
-     - simple-attention lapses −0.76
+1. **Attention/vigilance is the most state-sensitive domain.**
+   - Sleep-deprivation meta-analysis (Lim & Dinges 2010), Hedges' g:
+     - attention lapses −0.76
      - working memory −0.55
-     - short-term memory recall −0.38
+     - memory recall −0.38
      - processing speed −0.30
      - reasoning −0.13 (n.s.)
-   - Hangover likewise hits psychomotor speed and sustained attention (Gunn 2018).
-   - **So the PVT gets the largest time share.**
-2. **The 3-minute PVT-B is the shortest version still validated** (Basner 2011).
-   - Its effect sizes are ~23% smaller than the 10-min PVT, but still medium-to-large.
-   - 2-min and 90-s versions were judged insensitive.
-   - Over 16 administrations there was essentially **no practice effect** (Basner 2018).
-   - Caveat: its resolution is limited when you're well rested (Antler 2022).
+   - Hangover hits the same domains (Gunn 2018).
+   - **So the PVT gets the biggest time slot.**
+2. **The 3-min PVT-B is the shortest validated version** (Basner 2011).
+   - Shorter versions were insensitive.
+   - Essentially **no practice effect** over 16 administrations (Basner 2018).
 3. **Processing-speed tasks are the most reliable brief tasks.**
-   - A <1-min Symbol Search reaches 0.80 reliability after averaging just 2–3 days (Sliwinski 2018).
-   - Naturalistic sleep variation measurably slows it (Schwarz 2025; Buxton 2025).
-   - They do show a practice curve for ~1–5 weeks, so we need a run-in.
-4. **Memory is what long-COVID/brain-fog populations lose most consistently** (Hampshire 2024 NEJM; Guo 2022).
-   - Encoding while tired is hit hard: sleep deprivation *before* learning g = 0.62 (Newbury 2021).
-   - Day to day, brief memory tasks are noisy: single-session ICC 0.26–0.50.
-   - So memory is judged on **weekly/block means**. Free recall of a word list is chosen over 2-choice
-     recognition because it has no 50% guessing floor and gives more information per second.
+   - Symbol Search reaches 0.80 reliability averaged over 2–3 days (Sliwinski 2018).
+   - It is slowed by naturalistic poor sleep (Schwarz 2025; Buxton 2025).
+   - There is a 1–5 week practice curve, so a run-in period is needed.
+4. **Memory is what brain-fog/long-COVID groups lose most consistently** (Hampshire 2024 NEJM).
+   - Encoding while tired is hit hard (g = 0.62; Newbury 2021).
+   - Daily memory scores are noisy, so they are judged on weekly means.
+   - New word lists every day showed no practice effect (Moore 2021).
 5. **Verbal fluency has good alternate-form reliability.**
-   - Phonemic ICC 0.91, semantic 0.77 (Woods 2016).
-   - It is sensitive to sleep loss, with fewer words and more perseveration (Harrison & Horne 1997).
-   - Pause/timing features change after ~24 h awake (Vogel 2010).
-   - Weakest evidence of the four tasks for *daily* use over months, so treated as experimental (see §12).
-6. **Difference scores are unreliable.**
-   - Stroop, Flanker and task-switch costs have test-retest ICC 0.36–0.66 even with ~20-min tasks (Hedge 2018, "reliability paradox").
-   - Their raw RTs just duplicate the speed factor. **Dropped.**
-7. **Subjective and objective fog often dissociate.**
-   - Long-COVID patients were ~3 SD slower on simple RT with *zero* correlation to self-rated fatigue (Zhao 2024).
-   - Subjective complaints track mood and stress more than test scores.
-   - **So both are measured and never merged into one number.**
+   - Letter ICC 0.91, category 0.77 (Woods 2016).
+   - It is hurt by sleep loss (Harrison & Horne 1997).
+   - It is the least proven for *daily* use over months, so it is the first to replace if it turns out noisy.
+6. **Dropped: Stroop/Flanker/task-switching** ("reliability paradox", Hedge 2018), n-back, reasoning,
+   dedicated tapping tests and prospective-memory tests. They are unreliable, redundant or insensitive (details in §4).
+7. **Subjective and objective fog often disagree.**
+   - Long-COVID patients were ~3 SD slower with *no* correlation to how tired they felt (Zhao 2024).
+   - So both are measured and never merged.
 8. **Real-life day-to-day effects are small.**
-   - One hour less sleep costs ≈0.1 correct items on a 60-s DSST (Schwarz 2025).
-   - Only large exposures (hangover, <6 h sleep, illness) will be visible within a week or two.
-   - Subtle ones (a supplement) need weeks per arm and a randomised design.
+   - Large exposures (short night, illness) show up within 1–2 weeks.
+   - Subtle ones need weeks per condition and randomisation (§7).
 
 ---
 
-## 3. The daily morning session: module specs
+## 3. The morning session: module specs
 
-**Order rationale.** The list is learned first so the other tasks serve as the retention delay (~5 min).
-PVT comes early because it's the most state-sensitive and should not be pre-fatigued. Fluency comes
-last before delayed recall as verbal interference, the same every day.
+**Order:** The list is learned first, so the other tasks form the ~5-min retention delay. The PVT comes
+early because it's the most state-sensitive. "Now" questions come *before* the tests, so test
+performance doesn't colour your rating. "Yesterday" questions come *after*.
 
-### 3.1 Check-in (~25 s)
-- **KSS**, "Rate your sleepiness during the last 5 minutes", 1–9:
-  - 1 extremely alert · 3 alert · 5 neither alert nor sleepy · 7 sleepy, no effort to stay awake ·
-    9 very sleepy, fighting sleep
-  - Validated against PVT lapses (Kaida 2006).
-- **Fog**: "Right now my thinking feels…" 0 = completely clear/sharp → 10 = extremely foggy.
-  - Custom; no validated single daily fog item exists.
-- **Mood**: −3 very bad … +3 very good.
-- **Sleep quality** (Consensus Sleep Diary): very poor / poor / fair / good / very good.
-- Bed/wake times are prefilled from a wearable or the alarm and only confirmed.
-- **Auto-captured**:
-  - wake time (alarm dismissal) and minutes since waking
-  - session start time
-  - meditation done Y/N
-  - "interrupted" flag
-  - device / app version
+### 3.1 Now (~15 s)
+- **Fog**: "Hoe helder voelt je hoofd nu?" 0 = helemaal helder → 10 = extreem mistig. One slider.
+- **Sleep quality** (Consensus Sleep Diary item): zeer slecht / slecht / redelijk / goed / zeer goed.
+- **Sleep times**: *lights out* and *woke up*, both **prefilled with yesterday's values**.
+  Usually just tap "klopt" ("correct"); adjust only if different.
+  - With a fixed alarm, most sleep variation comes from bedtime, so this is the one number worth confirming.
+  - This gives time in bed and **minutes since waking** (sleep-inertia covariate).
+- **Dropped from v0.1**:
+  - The sleepiness scale (KSS) is redundant with the fog slider plus the PVT.
+  - Mood is not needed for your goals, and a rough proxy comes from "stress yesterday".
 
-### 3.2 Word list: encode + immediate recall (~50 s)
-- **List**: 12 unrelated concrete nouns, 1–2 syllables.
-  - Mid frequency (SUBTLEX log-freq ≈ 2.5–4.0), high concreteness (≥ 4/5).
-  - No semantic or phonological clusters.
-- **Presentation**: shown one at a time, **1.5 s each**, as a written word + spoken audio (TTS).
-  Auditory presentation mirrors verbal instructions at work.
-- **Immediate recall**: 30 s, **spoken** free recall (on-device speech recognition, audio stored);
-  tap "done" to end early.
+### 3.2 Word list: learn + immediate recall (~50 s)
+- **List**: 12 unrelated concrete **Dutch** nouns of 1–2 syllables.
+  - Mid frequency (**SUBTLEX-NL**), high concreteness (Brysbaert et al. 2014 Dutch concreteness norms).
+  - No semantic or sound clusters.
+- **Presentation**: shown one at a time, 1.5 s each, **written + spoken** (Dutch text-to-speech), mirroring verbal instructions at work.
+- **Immediate recall**: 30 s, spoken aloud; tap "klaar" to end early.
 - **Parallel forms**:
-  - A pool of ≥3,000 words; lists drawn so that no word repeats within 90 days.
+  - A pool of ≥ 3,000 words, with no word repeating within 90 days.
   - Lists balanced on frequency, length and concreteness.
-  - List difficulty is stored as a covariate.
-  - Why it works: the mobile verbal learning test with daily new lists showed **no practice effect** (Moore 2021).
-- **Collision rule**: no list word may belong to that day's fluency category or start with its letter.
+- **Collision rule**: no list word belongs to that day's fluency category or starts with its letter.
 
-### 3.3 PVT-B (3:00)
-- **Stimulus**: a millisecond counter starts in a fixed box.
-- **Response**: tap anywhere in a large area, same hand and grip daily.
-  The RT is shown for 1 s as feedback.
-- **Interval**: random 1–4 s between stimuli, excluding the 1-s feedback (Basner 2011), ≈ 60 stimuli.
-  *Fixed forever once chosen.*
-- **False start**: a response < 100 ms or with no stimulus shows "too soon".
-  **Timeout**: 30 s.
-- **Primary metric**: **mean response speed** (mean of 1/RT), the most sensitive and robust PVT metric.
+### 3.3 PVT-B reaction test (3:00)
+- **Task**: a millisecond counter starts in a box; tap anywhere as fast as possible. Your RT is shown for 1 s.
+- **Timing**: random 1–4 s wait between stimuli, ≈ 60 stimuli. *Fixed forever once chosen.*
+- **False start**: a response < 100 ms, or with no stimulus, shows "te vroeg" ("too early").
+- **Primary metric**: mean response speed (mean of 1/RT).
 - **Secondary metrics**:
-  - lapses (RT ≥ 355 ms; also log ≥ 500 ms)
+  - lapses (≥ 355 ms)
   - slowest-10% speed
   - false starts
-  - RT variability (CV of RT). Inflammation and long COVID show up as *variability* before slowing (Handke 2020; Ortelli 2022).
+  - RT variability, an early marker in inflammation and long COVID (Handke 2020; Ortelli 2022)
 
 ### 3.4 Symbol Search (~60 s)
-- **Display**: 3 symbol pairs on top; tap which of 2 bottom pairs exactly matches one of them.
+- **Task**: 3 symbol pairs on top; tap which of 2 bottom pairs matches one of them exactly.
   - 50% of trials have a lure sharing one symbol.
-  - Left/right target 50/50.
-  - Symbols drawn randomly each day.
-- **Trials**: **30**, fixed count rather than fixed time, so every day has the same data.
-  This is up from the 12–20 used in ambulatory research, to raise single-day reliability to ≈0.7.
-- **Primary metric**: median RT of correct trials (log-transformed). **Accuracy** is a validity check.
-- **Implementation**: port or embed the open-source **m2c2kit** implementation (Apache-2.0).
+  - Symbols are random each day.
+- **Trials**: 30 (a fixed count, so every day has the same amount of data).
+- **Primary metric**: median correct-trial RT. Accuracy is a validity check.
+- **Source**: port of the open-source m2c2kit task logic.
 
-### 3.5 Verbal fluency (60 s + 3 s prompt)
+### 3.5 Word fluency (60 s + 3 s prompt)
 - **Rotation**: alternate days between **letter** and **category**.
-  - **Letter**: a rotating set of ~14 letters (language-specific).
-  - **Category**: 50+ categories, no repeat within 60 days.
-- **Rules**: say as many words as possible, spoken aloud; no names, no same-stem variants.
+  - **Letters (Dutch-appropriate)**: D, A, T, K, M, S, B, P, R, V, G, H, L, W.
+    - D-A-T is the standard Dutch letter set.
+    - Rare letters (C, Q, X, Y, Z, U, I, E, …) are avoided.
+  - **Categories**: dieren (animals), beroepen (occupations), groenten (vegetables), fruit, kleding (clothing), gereedschap (tools), meubels (furniture), vervoermiddelen (vehicles), sporten (sports), lichaamsdelen (body parts), keukenspullen (kitchen items), muziekinstrumenten (instruments) … (50+), with no repeat within 60 days.
+- **Rule**: speak aloud; no names or places, no same-stem variants.
 - **Metrics**:
-  - **valid words** (primary, z-scored *within that letter/category's own history*, because forms differ in difficulty)
+  - valid words (primary, z-scored within that letter/category's own history)
   - words in the first 15 s
-  - latency to first word
+  - time to first word
   - median gap between words
-  - **number of silences > 5 s ("blanks")**
-  - repetitions / rule breaks
-- **Scoring**: timing comes from voice-activity detection, which needs no speech recognition to be correct.
-  Word scoring uses speech recognition, with ~10% of sessions spot-checked by hand at first.
+  - **silences > 5 s ("blanks")**
 
 ### 3.6 Delayed recall (~30 s)
-- **Task**: "Say all the words you remember from this morning's list." 30 s of spoken free recall.
-- **Metrics**:
-  - immediate correct
-  - delayed correct
-  - retention (delayed / immediate)
-  - intrusions
+- **Task**: "Noem alle woorden van de lijst die je nog weet" ("name every word from the list you still remember"). 30 s, spoken.
+- **Metrics**: immediate correct, delayed correct, retention (delayed ÷ immediate), intrusions.
 - **Primary**: immediate + delayed.
 
-### 3.7 Passive motor precision (0 s)
-- **Logged on every tap in every task**:
-  - distance from target centre (mm)
-  - misses (taps outside targets)
-  - double taps
-  - touch duration
-- **Index**: the Motor Precision Index = median offset + miss rate, z-scored.
-- **Status**: *secondary/exploratory*. Whether this is a valid "clumsiness" proxy is not established.
-  - Why no dedicated test: tapping/pointing tests showed weak sensitivity to sleep loss and mediocre
-    daily reliability (e.g. 10-s tapping speed ICC 0.65, rhythm 0.44), so they don't earn a dedicated slot.
+### 3.7 Yesterday (~15 s, after the tests)
+All items have a default, so a "normal" day takes three taps.
 
----
-
-## 4. Deliberately left out (and why)
-
-| Candidate | Decision | Reason |
+| Item | Options | Why |
 |---|---|---|
-| Stroop / Flanker / task-switching / Trail Making B−A | Drop | Difference scores are unreliable; raw RT is redundant with Symbol Search/PVT |
-| n-back / 2-back | Drop | Lowest within-person reliability (0.41), unstable in the first days, contaminated by speed; the word list covers memory |
-| Grid/Dot memory, Color Shapes (visuospatial working memory) | Drop (swap-in option) | Overlaps with the word list; verbal memory matches your complaint better |
-| Simple RT / choice RT / Go-No-Go | Drop | Same factor as the PVT; the PVT has more trials |
-| Reasoning (matrices), emotion recognition, risk (BART) | Drop | Least sleep-sensitive (g ≈ −0.13); long practice curves; large form effects |
-| Prospective memory test | Drop from the test; captured in the evening log | 1–4 binary events per session means hopeless single-day reliability |
-| Dedicated tapping/motor test | Drop; passive metrics instead | Weak sensitivity, poor daily reliability |
-| Morning-encode → evening-recall | Drop (maybe later) | Needs a second session; uncontrolled rehearsal; adherence drops |
+| **Daytime fog yesterday** | 0–10 slider, or "vrije dag" (day off) | **The most important one.** Checks whether the morning test predicts your actual workday. If it doesn't, the benchmark needs adjusting. |
+| **Physical activity yesterday** | geen / licht / flink (none / light / vigorous) | Exercise is a common, plausible fog lever; you have no wearable to measure it |
+| **Stress/workload yesterday** | laag / normaal / hoog (low / normal / high) | Stress drives subjective fog and poor sleep. Without it, stressful weeks look like "the intervention failed". |
+| **Anything unusual?** | chips, default none: *ziek* (sick) · *laat/zwaar gegeten* (late/heavy meal) · *geen thee* (no tea) · *extra cafeïne* (extra caffeine) · *alcohol* · *dutje* (nap) · *medicijn* (medication) · *slecht geslapen/vaak wakker* (slept badly / woke often) · *meditatie overgeslagen* (skipped meditation) · *moment van blanco/vergeten* (a blank or forgetting moment) · *iets anders* (something else, free text) | **Log exceptions, not constants.** Your caffeine (0–1 tea) and alcohol (none) are near-constant, so they only need a tap when they deviate. |
+
+**Why the morning works instead of an evening log:**
+- Recall of *yesterday* the next morning is fine for these items, because they are coarse and salient.
+- It keeps everything to **one habit, one time, one place**.
+- The small cost: "daytime fog yesterday" is rated ~16 h later and may be slightly coloured by how you
+  feel this morning. That's acceptable and much better than a skipped evening log.
+
+### 3.8 Automatic (0 s)
+- **Tap precision** on every tap in every task: distance from target centre, misses, double taps.
+  These feed the Motor Precision Index for "clumsiness".
+- **Timing context**: session start time, minutes since waking, day of week.
+- **Data quality**: interrupted sessions (app backgrounded), Low Power Mode (detected via frame rate; it halves the
+  screen refresh rate and skews reaction times), app version.
 
 ---
 
-## 5. Non-test questionnaires
+## 4. Deliberately left out
 
-### 5.1 Evening log (~40 s; if missed, next-morning "yesterday" fallback, flagged)
-- **Alcohol**: drinks + time of last drink
-- **Caffeine**: servings + time of last
-- **Late large meal** (< 3 h before bed): Y/N
-- **Exercise**: minutes + intensity (or from wearable)
-- **Stress today**: 1–5 (single item, after Elo 2003)
-- **Screens in the last hour before bed**: Y/N
-- **Illness/symptoms**: none / mild / sick
-- **Meds / supplements / nap**: checklist
-- **"How was your thinking at work today?"** 0–10.
-  **Important**: this checks whether the morning test tracks your *daytime* function.
-- **Daily lapses**, 0–3 each (adapted from a daily Cognitive Failures scale, Guevarra 2024):
-  - forgot something I meant to do
-  - went blank / lost my train of thought
-  - dropped or bumped into things
+| Candidate | Why not |
+|---|---|
+| Stroop / Flanker / task-switching / Trail Making | Difference scores unreliable; raw RT redundant with PVT + Symbol Search |
+| n-back | Lowest daily reliability (0.41), speed-contaminated |
+| Grid/Dot memory, Color Shapes | Overlaps the word list; kept as a **swap-in** if fluency turns out too noisy |
+| Simple/choice RT, Go/No-Go | Same factor as the PVT |
+| Reasoning, emotion recognition, risk tasks | Barely affected by sleep/fatigue; long practice curves |
+| Prospective-memory test | Too few events per day to be reliable; the "blank/forgetting moment" chip covers real life |
+| Dedicated tapping/motor test | Weak sensitivity, mediocre reliability; tap precision is captured for free |
+| Evening log | Replaced by the "Yesterday" block (§3.7) |
+| Weekly PROMIS / fortnightly Brain Fog Scale | See §5 |
 
-### 5.2 Periodic
-- **Weekly (Sunday), PROMIS Cognitive Function 4a**, 7-day recall.
-  - Items: "My thinking has been slow", "…brain was not working as well as usual", "…had to work
-    harder to keep track…", "…trouble shifting back and forth…".
-  - Scale: never … very often.
-- **Every 2 weeks, Brain Fog Scale** (Debowska 2024): 23 items, 3 subscales (Mental Fatigue,
-  Impaired Cognitive Acuity, Confusion), ~2 min.
-- **Once at start** (and every ~3 months), for screening: **PHQ-9** (depression), **GAD-7** (anxiety),
-  **STOP-Bang or Epworth** (sleep apnea / sleepiness).
+---
 
-### 5.3 Passive data (if you have a wearable)
-- **What to pull**: sleep times and duration, resting HR, overnight HRV, steps.
-- **Reliability**: consumer wearables are OK for sleep duration/timing, weak for sleep stages.
-- **Keep the subjective sleep-quality question**: it predicts next-day function independently.
+## 5. Questionnaires: only once, not weekly
+
+**Weekly/fortnightly questionnaires are dropped. They aren't needed.** They measure "fog over the past
+1–2 weeks", which the daily fog sliders already give you, averaged, with more precision. They'd only add
+comparability with published studies, which doesn't serve your goal.
+
+**One-time, at the start (~5 min, optional repeat every ~3 months or before a doctor visit):**
+- **Brain Fog Scale** (Debowska 2024, 23 items): describes *what kind* of fog you have (mental fatigue vs.
+  cognitive acuity vs. confusion). It's a validated snapshot you can compare against later.
+- **PHQ-9** (depression) + **GAD-7** (anxiety): these are among the most common drivers of brain fog, and
+  worth knowing before attributing fog to anything else.
+- **STOP-Bang** (sleep apnea screen): 8 yes/no items. Apnea is a common, very treatable, often unnoticed cause.
+
+The app shows these as an optional one-off "Intake", with a Dutch validated version where available.
 
 ---
 
 ## 6. Scoring
 
-1. **Validity rules**. A session is invalid if any of these hold:
-   - interrupted
-   - PVT false starts > 10% of responses
-   - Symbol Search accuracy < 75%
-   - meditation skipped (flag rather than invalidate)
-
-   One retake per day is allowed *only* if the first attempt was invalid.
-2. **Per-metric personal z-score** against the post-run-in baseline, using robust statistics:
-   `z = (x − median) / (1.4826 · MAD)`, winsorised at ±3, signed so that **higher = better**.
-   - Fluency is z-scored within its form (letter vs. category).
-   - Memory is adjusted for list difficulty once there's enough data.
-3. **Objective Cognition Index (OCI)**: equal-weight mean of four domain scores, rescaled to
-   baseline mean 0 / SD 1. Equal weights are robust with small n; don't fit weights on < ~60 days.
-   - **Attention** = mean(z PVT speed, z PVT lapses)
-   - **Speed** = z Symbol Search RT
-   - **Memory** = z (immediate + delayed recall)
-   - **Retrieval** = z fluency words
-4. **Subjective Fog Index (SFI)** = mean(z fog rating, z KSS). **Kept separate from the OCI.**
-5. **Motor Precision Index**: secondary, exploratory.
-6. **Display**:
-   - a 7-day rolling mean with a personal baseline band (control chart)
-   - a single-day value, shown only faintly
-   - "unusual day" flags when the OCI is beyond ±2 SD
-   - domain breakdown on tap
-7. **Re-baseline** whenever the phone, OS (major version), app task parameters or test time/routine change.
+1. **Validity**:
+   - A session is **invalid** if interrupted, PVT false starts > 10%, or Symbol Search accuracy < 75%.
+   - A session is **flagged** (kept, marked) for skipped meditation or Low Power Mode.
+   - A retake is allowed only after an invalid session.
+2. **Personal z-scores**: against the post-run-in baseline, with robust statistics
+   (median/MAD), winsorised at ±3, signed so higher = better.
+3. **Objective Cognition Index (OCI)**: equal-weight mean of four domains, scaled to baseline mean 0 / SD 1.
+   - **Attention**: PVT speed + PVT lapses
+   - **Speed**: Symbol Search RT
+   - **Memory**: immediate + delayed recall
+   - **Retrieval**: fluency words
+4. **Subjective Fog Index (SFI)**: morning fog rating + yesterday's daytime fog. **Separate from the OCI.**
+5. **Motor Precision Index**: exploratory.
+6. **In the app**:
+   - a line of the 7-day rolling OCI and SFI with your baseline band
+   - today's dot shown faintly
+   - tap for the domain breakdown
+   - no alarming single-day verdicts
+7. **Re-baseline** after a new phone, a major iOS update or a task change.
 
 ---
 
@@ -269,161 +238,158 @@ last before delayed recall as verbal interference, the same every day.
 
 | Phase | Duration | What happens |
 |---|---|---|
-| **0. Medical check** | parallel | See §9. The most important "experiment" is ruling out treatable causes. |
-| **1. Run-in** | 14 days | Learn the tasks; practice curves flatten. Data kept but excluded from the baseline. |
-| **2. Baseline (observational)** | 21–28 days | Normal life, full logging. Defines your personal norms. Extended until the fitted learning curve is flat over the last 10 days. Exploratory "what correlates with bad days?" analysis to *generate* hypotheses. Optional: for 1–2 weeks add an early-afternoon session to check that morning scores track daytime. |
-| **3. Experiments** | 3–8 weeks each | One intervention at a time, randomised, pre-registered in the app (hypothesis, primary outcome = OCI, duration, stop rule). |
+| **0. Doctor check** | in parallel | See §9. |
+| **1. Run-in** | 14 days | Learning the tasks. Data kept, excluded from the baseline. |
+| **2. Baseline** | 21–28 days | Normal life. Establishes your personal norm. Exploratory: "what goes with bad days?" |
+| **3. Experiments** | 3–8 weeks each | One change at a time, randomised, decided *in advance*: what, how long, what counts as success. |
 
-### Experiment designs
-- **Fast-acting, next-day exposures**: no alcohol, caffeine cut-off time, no late meal, screens off,
-  earlier bedtime, evening exercise.
-  - Randomise **day by day**, or in randomised pairs (AB/BA).
-  - At least 20–30 days per condition.
-- **Slow or cumulative exposures**: supplements (iron, B12, D, omega-3), diet change, sustained sleep
-  extension, quitting caffeine.
-  - Randomised **ABAB blocks of 2–4 weeks**, at least 2 pairs.
-  - Analyse only the last ~60% of each block (built-in washout).
-  - Caffeine withdrawal lasts 2–9 days, so caffeine blocks need ≥1 week of washout.
-- **Blinding where possible**: identical opaque capsules prepared by someone else, and numbered
-  envelopes or pill boxes.
-  - Log your daily *guess* of the condition, to check whether you actually were blinded.
-  - Expectancy moves subjective ratings more than objective tasks, which is another reason the OCI is primary.
-- **Never** change two things at once, and never change the morning routine (meditation, timing) during an experiment.
+- **Fast-acting, next-day things** (earlier bedtime, no late meals, screens off, evening walk):
+  - randomise **day by day** (the app tells you each morning or evening which condition applies)
+  - 20–30 days per condition
+- **Slow things** (supplements such as iron, B12 or D, diet change, a sustained sleep schedule):
+  - randomised **ABAB blocks of 2–4 weeks**
+  - only the last ~60% of each block is analysed (washout)
+- **Blinding where possible**: e.g. identical capsules prepared by someone else. The app asks your guess to check the blinding.
+- **Never** change two things at once, or the morning routine during an experiment.
 
-### How many days? (80% power, α = .05, in within-person SD units of the daily OCI)
+**How many days per condition (80% power)?**
 
-| True effect | Days per condition (independent days) | With autocorrelation (≈ ×1.5–1.9) |
+| Effect size | Days per condition | Example |
 |---|---|---|
-| Large (d = 1.5), e.g. hangover, < 5 h sleep | ~7 | ~11–13 |
-| d = 1.0 | ~16 | ~25–30 |
-| d = 0.8 | ~25 | ~40–48 |
-| Moderate (d = 0.5), e.g. a supplement that "works" | ~63 | ~95–120 |
+| d = 1.5 | ~10 | Very short night, being sick |
+| d = 1.0 | ~16–25 | Solid sleep change |
+| d = 0.5 | ~60–100 | Subtle supplement effect |
 
-Frequent alternation (daily randomisation) keeps the autocorrelation penalty near the left column.
-
-### Analysis
-- **Primary**: regression of the daily OCI on condition + a practice/time trend + minutes-since-waking
-  (+ sleep duration), with AR(1) errors (Bayesian or GLS).
-  - Report the **probability that the effect exceeds a smallest-worthwhile change** (e.g. 0.3 SD),
-    not just a p-value.
-- **Confirmatory**: a randomisation test using the actual randomisation schedule.
-- **Monitoring**: EWMA / control chart against the baseline limits.
-- **Avoid**: plain t-tests on daily data, and conclusions from single days.
-- **Report**: OCI, SFI and each domain separately. "Felt better but tested the same" is a real and useful finding.
+**Analysis:**
+- **v1**: in-app charts plus a rough before/after comparison.
+- **Proper stats**: done periodically by me (Claude) on your exported data. That's a regression with a
+  practice trend, a time-since-waking covariate and autocorrelation, plus a randomisation test. The result
+  is stated as the "probability the effect is bigger than a meaningful change".
 
 ---
 
 ## 8. Timing and standardisation rules
 
-- **Sleep inertia is real at your test time.**
-  - Your test starts ~16–20 min after the alarm.
-  - Performance recovers asymptotically over 1–2 h after waking, faster in the first 15–30 min.
-  - It is worse after short sleep (Jewett 1999; Hilditch & McHill 2019).
-  - So morning scores partly measure sleep inertia. This makes them *extra* sensitive to sleep manipulations.
-  - **Recommendation**: keep the routine, but
-    - (a) get out of bed and get light and water before meditating, not just snooze in bed
-    - (b) aim for a test start ≥ 25 min after the first alarm
-    - (c) keep that interval constant (±5 min); the app logs it and uses it as a covariate
-- **Snooze**: keep it identical every day (5 min or none). It's part of the routine, and the app logs alarm vs. natural waking.
-- **Meditation**: a single session can acutely improve attention.
-  - That's fine as long as it's constant, because it becomes part of the baseline.
-  - Days you skip or shorten it are flagged or excluded.
-- **Caffeine**: always test **before** the first coffee.
-- **Environment**: same phone, same posture and hand, Do-Not-Disturb on, same brightness, quiet room
-  (needed for the voice tasks).
-- **Device timing**:
-  - Touchscreen latency adds a constant 35–140 ms depending on the phone. A constant offset cancels out
-    within one device, but it breaks comparisons across devices, hence re-baselining on a phone change.
-  - The app must be native (or near-native), with frame-accurate stimulus timestamps and hardware touch
-    timestamps. PVT speed, not lapse counts, is the primary metric because it's less sensitive to device offset.
+- **Sleep inertia**:
+  - You test ~16–20 min after the alarm. Grogginess is still fading then; performance recovers over
+    ~1–2 h, and more slowly after a short night.
+  - That's OK, and even makes the test extra sensitive to sleep, **as long as it's consistent**.
+  - Two cheap improvements:
+    - (a) get out of bed and drink water or get light before meditating, instead of snoozing lying down
+    - (b) keep the snooze the same every day
+  - The app logs minutes since waking and corrects for it.
+- **Meditation**: can acutely sharpen attention. That's fine if it's done every day, because it becomes part of the baseline. Skipped days get a chip and are flagged.
+- **Tea**: always test **before** your tea.
+- **Same setup every day**:
+  - same phone, same posture and hand
+  - Do Not Disturb on
+  - quiet room (for the voice tasks)
+  - Low Power Mode **off**
+- **Weekends**: do it too, same routine. If the wake time differs, the prefilled sleep times catch it.
 
 ---
 
-## 9. See a doctor in parallel: common treatable causes of brain fog
+## 9. See a doctor in parallel
 
-An app can show *that* and *when* you're foggy, but it can't diagnose *why*. Worth ruling out:
+An app shows *that* and *when* you're foggy, not *why*. Worth ruling out:
 
-- **Sleep**
-  - obstructive sleep apnea (even without obvious snoring)
+- **Sleep**:
+  - obstructive sleep apnea (often unnoticed)
   - insufficient sleep
   - insomnia
-  - delayed circadian rhythm
-- **Mental health**: depression, anxiety, burnout / stress-related exhaustion. These often present
-  primarily as "brain fog" and subjective memory complaints.
-- **Blood work**
+- **Mental health**: depression, anxiety, burnout/stress exhaustion. Very often presents as "brain fog".
+- **Blood work**:
   - TSH (thyroid)
   - B12
-  - **ferritin** (iron deficiency impairs cognition even without anemia)
+  - **ferritin** (iron deficiency hurts cognition even without anemia)
   - full blood count
   - glucose / HbA1c
-  - possibly celiac serology
-  - vitamin D (weak evidence for cognition)
-- **Post-viral / long COVID**, especially if the fog started after an infection.
-- **Medications and substances**
-  - antihistamines and anticholinergics, sleep medication, some antidepressants, beta-blockers
-  - alcohol, cannabis
-  - withdrawal from any of these
-- **Other**: orthostatic intolerance (POTS), perimenopause, adult ADHD.
-- **Red flags → see a doctor promptly**:
-  - steadily worsening decline
-  - new word-finding or language problems
-  - weakness, numbness or other neurological symptoms
+  - possibly celiac serology and vitamin D
+- **Post-viral / long COVID**: especially if it started after an infection.
+- **Medications**: antihistamines, sleep medication, some antidepressants, beta-blockers.
+- **Other**: orthostatic intolerance (POTS), adult ADHD.
+- **Red flags, go promptly**:
+  - steadily worsening
+  - new word-finding problems
+  - numbness or weakness
   - new headaches
-  - unexplained weight loss
+  - weight loss
 
-The app's baseline data (a month of scores + sleep log) is useful to bring to that appointment.
-
----
-
-## 10. Honest expectations and limitations
-
-- **Single days**:
-  - A single morning score is roughly half signal, half noise.
-  - Brief-task within-person reliability is only 0.4–0.55 per task. The four-task composite improves this.
-- **Blocks**: 7-day means are reliable (≥ 0.85).
-- **Subtle interventions**: most will show "no detectable effect" unless run for many weeks with
-  randomisation. That is a real answer, not a failure.
-- **Population**: nearly all daily-testing research is on 1–2-week studies, often in older adults.
-  Practice and form-exhaustion effects over *months* in a working-age adult are less studied.
-  The run-in and trend term handle this, but we should watch for it.
-- **Fluency**: daily fluency over months is the least evidence-backed module. If its data turn out
-  noisy after the baseline, it's the first candidate for replacement (by Grid Memory or more PVT).
-- **Morning vs. daytime**: morning scores might not track afternoon meeting performance. The evening
-  "thinking at work" item and the optional afternoon validation week test exactly this.
+Bringing 4–6 weeks of app data plus the intake questionnaires to that appointment is genuinely useful.
 
 ---
 
-## 11. Build notes (for later)
+## 10. Honest expectations
 
-- **Reuse**:
-  - **m2c2kit** (open-source, Apache-2.0, TypeScript): Symbol Search, Grid Memory, Color Shapes
-  - **PEBL** (open source): PVT logic
-  - **StudyU/StudyMe** (open-source N-of-1 app): randomised ABAB scheduling
-- **Storage**: all raw trial-level data stored locally with export (CSV/JSON), so analyses can be
-  redone later with better methods.
-- **Speech**: on-device speech recognition (privacy), audio kept for spot-checking.
+- **Noise**:
+  - A single morning is about half signal, half noise.
+  - 7-day averages are reliable.
+  - Most subtle interventions will show "no detectable effect" unless run for weeks. That's a real answer.
+- **Evidence limits**:
+  - Most daily-testing research ran 1–2 weeks, often in older adults, so months-long practice effects are less studied.
+  - The run-in and trend correction handle this.
+- **Fluency**: the least proven module. If after the baseline it's too noisy, it's swapped for Grid Memory.
+- **Morning vs. workday**: the morning test might not track afternoon meetings. The "daytime fog yesterday" item tests exactly this.
 
 ---
 
-## 12. Decisions needed from you
+## 11. Build approach: free, iPhone, minimum friction
 
-1. **Session length.** The recommended session is ~7 min. Alternatives:
-   - **A. Recommended (~7 min):** everything in §0.
-   - **B. Shorter variant:** fluency moves to *alternate days* (it's the weakest-evidence module), and
-     Symbol Search drops to 24 trials. That gives ≈ 5½ min on non-fluency days and ≈ 6½ min on fluency days.
-     A strict 5 min would mean dropping immediate recall or fluency entirely, which I don't recommend.
-   - **C. "Bad-day minimum" (~3½ min)**, available in either option: check-in + PVT only, so the streak
-     never breaks. Minimum days are marked and analysed on PVT only.
-2. **Speaking aloud.** Memory recall and fluency use *spoken* answers: they're faster, richer, and avoid
-   typing confounds. Is speaking out loud OK in your morning setting (e.g. someone sleeping nearby)?
-   The fallback is typed recall and typed fluency, which is lower quality.
-3. **Language.** Should the word lists and fluency be in **Dutch or English**? Dutch word norms exist
-   (SUBTLEX-NL, Dutch concreteness norms). Test in the language you think and work in most.
-4. **Wearable.** Do you have one (Oura, Apple Watch, Garmin, Fitbit…)? If yes, sleep and HRV are
-   imported and the questions shrink.
-5. **Phone.** iOS or Android? This matters for timing precision and the build approach.
-6. **Evening log.** Is a ~40-s evening log acceptable? Without it, we can only correlate scores with
-   morning-reported data.
+**Choice: a Progressive Web App (PWA) hosted free on GitHub Pages, added to your iPhone home screen.**
+
+- **Why a web app and not a native app**:
+  - A native iOS app costs €99/year (Apple Developer Program).
+  - The free alternative means re-installing from a Mac every 7 days.
+  - A home-screen web app is free and opens full-screen like a normal app.
+  - It works offline and updates itself.
+- **Timing precision**:
+  - Safari adds a roughly constant touch/display delay, which cancels out because you always use the same phone.
+  - Frame-accurate stimulus timing uses `requestAnimationFrame`.
+  - Reaction times use the high-resolution touch timestamps.
+  - Low Power Mode (which throttles frames) is detected and flagged.
+- **Speech**:
+  - Spoken answers use Safari's built-in speech recognition in Dutch (`nl-NL`).
+  - Pause/timing metrics come from on-device voice-activity detection, so timing works even if a word is misheard.
+  - At the end of the session, a 5-second **check screen** shows what was heard vs. the list, and you tap to fix mistakes.
+  - The check comes at the end so you're never re-shown the words before delayed recall.
+  - **Fallback**, if speech recognition turns out unreliable in home-screen mode on iOS:
+    - typed recall
+    - for fluency, word count estimated from speech bursts
+- **Data**:
+  - Stored on the phone, with a persistent-storage request.
+  - **Automatic backup after every session to a *private* GitHub repo** (e.g. `fogmeter-data`), which is free.
+    - It needs a one-time ~5-min token setup.
+    - After that it's invisible.
+    - It also lets me analyse your data in later sessions.
+  - Only scores and trial data are backed up, **no audio**. Audio is kept on the phone for 14 days for spot-checks, then deleted.
+  - The app code stays in this public repo. Your data never goes here.
+- **Launch**:
+  - One home-screen icon.
+  - Optional later: an iOS Shortcut that opens it when your meditation timer ends.
+
+### v1 scope (build first)
+- All 6 session steps
+- "Yesterday" block
+- Validity checks
+- Local storage + GitHub backup
+- Simple 7-day chart
+- One-time intake
+
+### Later (only if v1 is used consistently)
+- Day-by-day randomised experiment scheduler
+- In-app statistics
+- iOS Shortcut launcher
+- Automatic step count from Apple Health via a Shortcut (the iPhone counts steps without a wearable), which would replace the activity question
+- Swap-in Grid Memory
+
+---
+
+## 12. Remaining decisions
+
+1. **Backup**: is a private GitHub repo for your data OK? It's free and automatic, and lets me analyse it later.
+   The alternative is manual export (share to iCloud Drive), which is more friction and easier to forget.
+2. **Approve v0.2?** If yes, next step is the build, starting with a quick prototype on your phone to verify that
+   Dutch speech recognition works in home-screen mode (that decides the speech-vs-typing fallback).
 
 ---
 
@@ -446,18 +412,16 @@ The app's baseline data (a month of scores + sleep log) is useful to bring to th
 - Hampshire A et al. (2024). Cognition and memory after COVID-19 in a large community sample. *NEJM* 390:806.
 - Zhao S et al. (2024). Long COVID is associated with severe cognitive slowing. *eClinicalMedicine*.
 - Handke A et al. (2020). Inflammation-induced RT variability. *Brain Behav Immun Health*.
+- Ortelli P et al. (2022). Attention and executive deficits in post-COVID. *Sci Rep*.
 - Schwarz J et al. (2025). Day-to-day sleep and smartphone DSST performance. *Sleep* zsaf321.
 - Buxton OM et al. (2025). Sleep fragmentation and next-day cognition (M2C2). *Sleep Health*.
-- Gunn C et al. (2018). A systematic review of next-day effects of heavy alcohol consumption on cognition. *Addiction*.
-- Kaida K et al. (2006). Validation of the Karolinska Sleepiness Scale. *Clin Neurophysiol*.
+- Gunn C et al. (2018). Next-day effects of heavy alcohol consumption on cognition. *Addiction*.
 - Carney CE et al. (2012). The Consensus Sleep Diary. *Sleep* 35:287.
 - Debowska A et al. (2024). Brain Fog Scale: development and validation. *Pers Individ Differ* 216:112427.
-- Guevarra DA et al. (2024). Daily cognitive failures. *Brain Sciences*.
-- McWhirter L et al. (2023). What is brain fog? *JNNP* 94:321.
+- Brysbaert M, Stevens M, De Deyne S, Voorspoels W, Storms G (2014). Norms of age of acquisition and concreteness for 30,000 Dutch words. *Acta Psychologica* 150:80.
+- Keuleers E, Brysbaert M, New B (2010). SUBTLEX-NL: a new measure for Dutch word frequency. *Behav Res Methods* 42:643.
 - Jewett ME et al. (1999). Time course of sleep inertia dissipation. *J Sleep Res* 8:1.
 - Hilditch CJ, McHill AW (2019). Sleep inertia: current insights. *Nat Sci Sleep* 11:155.
 - Kravitz RL, Duan N (eds.) (2014). *Design and Implementation of N-of-1 Trials*. AHRQ.
-- Vohra S et al. (2015). CONSORT extension for N-of-1 trials (CENT). *BMJ* 350:h1738.
 - Wang Y, Schork NJ (2019). Power and design issues in crossover-based N-of-1 clinical trials. *Healthcare*.
-- Juliano LM, Griffiths RR (2004). Caffeine withdrawal. *Psychopharmacology* 176:1.
 - m2c2kit: https://github.com/m2c2-project/m2c2kit (Apache-2.0)
