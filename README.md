@@ -44,6 +44,7 @@ full per-session details, all notes, and (after the run-in) the 7-day trend vs. 
 3. **iPhone.**
    - Safari microphone: allow it (Settings → Apps → Safari → Microphone).
    - Build the Shortcut: automatic wake time when you stop your alarm, plus step count from Apple Health.
+     Optionally a bedtime: the latest time you closed the Clock app (i.e. set your alarm) between 20:00 and 04:00.
      Step-by-step instructions are in the app under Instellingen → **Uitleg**.
 4. Do one **Oefenronde** (practice run, not saved) to check that Dutch speech recognition works on your phone.
    If it doesn't, switch to typing in Instellingen.
