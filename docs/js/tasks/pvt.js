@@ -7,6 +7,9 @@ import { h, taskScreen, skipButton } from '../ui.js';
 import { summarizePvt } from '../scoring.js';
 
 export const PVT_DURATION_MS = 180000;
+// Stimulus look, stored with each session. 1 = large bright-yellow counter (app < 1.4);
+// 2 = small dim-red counter in a small box, like the classic PVT's LED display. Not comparable across versions.
+export const PVT_STIMULUS = 2;
 const ISI_MIN = 1000;
 const ISI_MAX = 4000;
 const FEEDBACK_MS = 1000;

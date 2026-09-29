@@ -200,7 +200,7 @@ const s = saved[saved.length - 1];
 const firstAuto = prefilled.filter((_, i) => i % 2 === 0);
 const secondAuto = prefilled.filter((_, i) => i % 2 === 1);
 const checks = {
-  homeMinimal: JSON.stringify(homeButtons) === JSON.stringify(['Start', 'Notitie', 'Resultaten', 'Instellingen', 'Oefenronde']),
+  homeMinimal: JSON.stringify(homeButtons) === JSON.stringify(['Oefenronde', 'Notitie', 'Resultaten', 'Instellingen', 'Start']),
   checkinEmpty,
   clarityNow: s.now.clarity === 7 && s.now.fog === undefined,
   noteCleared,

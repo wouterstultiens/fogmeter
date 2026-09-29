@@ -6,7 +6,7 @@ import { unlockTts, ttsVoiceName, primeMic, asrSupported, SpeechListener } from 
 import { localDateStr, dayIndex, wordListForDay, practiceList } from './schedule.js';
 import { speechTiming, validity, median } from './scoring.js';
 import { captureFromUrl, currentShortcutData, clearShortcutData } from './shortcut.js';
-import { runPvt } from './tasks/pvt.js';
+import { runPvt, PVT_STIMULUS } from './tasks/pvt.js';
 import { runSymbols } from './tasks/symbols.js';
 import { encodeList, recallTask } from './tasks/verbal.js';
 import { checkIn, yesterday, review } from './tasks/questions.js';
@@ -31,21 +31,23 @@ async function home() {
   const lastInvalid = todays.length && !doneValid ? todays[todays.length - 1] : null;
   const backup = backupWarning(getConfig());
 
+  // Everything tappable sits at the bottom, within thumb reach; Start is the lowest.
   render(
     h('h1', 'Fogmeter'),
+    h('div.grow'),
+    backup ? h('p.small.muted', backup) : null,
+    h('button.link', { onclick: () => start(true) }, 'Oefenronde'),
+    h('div.nav',
+      h('button', { onclick: () => note() }, 'Notitie'),
+      h('button', { onclick: () => results() }, 'Resultaten'),
+      h('button', { onclick: () => settings() }, 'Instellingen'),
+    ),
     doneValid
       ? h('div.card.center', h('h2', 'Vandaag gedaan ✓'))
       : [
         lastInvalid ? h('p.small', { style: { color: 'var(--warn)' } }, `Eerdere poging vandaag ongeldig (${lastInvalid.invalidReasons.join(', ') || 'kort'}). Je mag opnieuw.`) : null,
         h('button.primary.big', { onclick: () => start(false) }, 'Start'),
       ],
-    h('div.nav',
-      h('button', { onclick: () => note() }, 'Notitie'),
-      h('button', { onclick: () => results() }, 'Resultaten'),
-      h('button', { onclick: () => settings() }, 'Instellingen'),
-    ),
-    h('button.link', { onclick: () => start(true) }, 'Oefenronde'),
-    backup ? h('p.small.muted', backup) : null,
   );
 }
 
@@ -174,6 +176,7 @@ async function start(practice) {
   if (await intro('Reactietest (3 min)', [
     'Tik zo snel mogelijk ergens op het scherm zodra de teller begint te lopen.',
     'Niet tikken vóór de teller loopt. Houd de telefoon zoals altijd, zelfde hand.',
+    'Zet automatische helderheid uit en gebruik elke dag dezelfde schermhelderheid.',
   ]) === 'skip') {
     skipped.push('pvt');
   } else {
@@ -183,7 +186,7 @@ async function start(practice) {
     s.context.frameMs = pvt.frameMs;
     flags.lowFrameRate = pvt.frameMs != null && pvt.frameMs > 25;
     if (pvt.skipped) skipped.push('pvt');
-    else s.pvt = { trials: pvt.trials, summary: pvt.summary };
+    else s.pvt = { trials: pvt.trials, summary: pvt.summary, stimulus: PVT_STIMULUS };
   }
 
   current = 'symbols-instr';

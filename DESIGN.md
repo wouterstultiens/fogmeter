@@ -1,4 +1,16 @@
-# Fogmeter: daily cognitive benchmark, design v0.6 (v1.3 built)
+# Fogmeter: daily cognitive benchmark, design v0.7 (v1.4 built)
+
+> **v0.7 changes (app 1.4.0, after the first session):**
+> - **Harder-to-notice PVT stimulus.** The counter is now small (28 px), dim red on black, in a small box, like the
+>   red LED digits of the classic PVT and the NASA PVT+ app. The old large bright-yellow counter grabbed attention by
+>   itself and could mask small lapses. Timing is unchanged (1–4 s wait, 3 min, 355 ms lapse threshold), since that is
+>   what the PVT-B was validated with. Each session stores `pvt.stimulus` (missing = 1, old look; 2 = new look);
+>   version-1 data is not comparable and should be left out of the baseline. A dim stimulus depends on screen
+>   brightness, so the instructions ask for auto-brightness off and a fixed brightness.
+> - **Symbol Search unchanged.** It is meant to feel easy: it measures speed (median correct RT), not difficulty,
+>   and settling into a fixed scanning routine is part of the expected run-in.
+> - **Home screen buttons at the bottom**, within thumb reach, with Start lowest.
+
 
 > **v0.6 changes (app 1.3.0, less noise):**
 > - **Clarity scale runs the right way round.** Every 0–10 rating asks "Hoe helder…?", so 0 = heel mistig and
@@ -191,6 +203,7 @@ performance doesn't colour your rating. "Yesterday" questions come *after*.
 
 ### 3.3 PVT-B reaction test (3:00)
 - **Task**: a millisecond counter starts in a box; tap anywhere as fast as possible. Your RT is shown for 1 s.
+- **Stimulus** (v0.7): small dim-red counter (28 px) in a small black box, like the classic PVT's LED display.
 - **Timing**: random 1–4 s wait between stimuli, ≈ 60 stimuli. *Fixed forever once chosen.*
 - **False start**: a response < 100 ms, or with no stimulus, shows "te vroeg" ("too early").
 - **Primary metric**: mean response speed (mean of 1/RT).
