@@ -87,6 +87,7 @@ await page.waitForSelector('text=Hoe helder voelt je hoofd nu?');
 const checkinEmpty = (await sliderValue()) === '–' && await page.locator('.slider .track.unset').count() === 1;
 await dragSlider(2, 7);
 await clickText('goed');
+await clickText('30 min');
 await snap('checkin');
 await clickText('Verder');
 
@@ -211,6 +212,7 @@ const checks = {
   wakeFromShortcut: s.now.wakeSource === 'shortcut',
   minutesSinceWake: s.context.minutesSinceWake >= 19 && s.context.minutesSinceWake <= 25,
   steps: s.context.steps24h === 8412,
+  awake: s.now.awakeMin === 30 && s.context.sleepMin === s.context.timeInBedMin - 30,
   marked: marked.length === 4 && !marked.some((m) => m.includes('banaan')), // glued pair, word, plural, word
   prefillFirst: firstAuto.filter(Boolean).length === 3 && firstAuto[0] && firstAuto[1] && firstAuto[2],
   prefillSecond: secondAuto.filter(Boolean).length === 2 && secondAuto[0] && secondAuto[5],

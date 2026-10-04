@@ -4,7 +4,8 @@ A ~6-minute daily morning test for tracking brain fog. It runs as a free web app
 opened through an iOS Shortcut. Why it measures what it measures: see [DESIGN.md](DESIGN.md).
 
 **The session:**
-1. Check-in: how clear your head is right now (0–10 slider), sleep quality, sleep times
+1. Check-in: how clear your head is right now (0–10 slider), sleep quality (apart from how long), sleep times, and
+   how long you were awake during the night (time in bed minus this = estimated sleep)
 2. Learn a 12-word list (Dutch)
 3. First recall: say the words aloud; speech recognition listens (no tapping)
 4. 3-minute reaction-time test (PVT-B)

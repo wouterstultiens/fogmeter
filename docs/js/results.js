@@ -174,7 +174,10 @@ const RAW = [
     title: 'Helderheid (0–10)', hint: 'hoger = helderder', ticks: [0, 5, 10],
     series: [{ label: 'nu', f: clarityNow }, { label: 'gisteren', f: clarityDay }],
   },
-  { title: 'Tijd in bed (uur)', digits: 1, series: [{ label: 'tijd in bed', f: (s) => s.context?.timeInBedMin / 60 }] },
+  {
+    title: 'Slaap (uur)', digits: 1,
+    series: [{ label: 'tijd in bed', f: (s) => s.context?.timeInBedMin / 60 }, { label: 'geschatte slaap', f: (s) => s.context?.sleepMin / 60 }],
+  },
 ];
 
 function rawCard(ix) {
@@ -332,6 +335,7 @@ export function sessionDetail(s) {
   const kv = (label, value) => h('div.kv', h('span.muted', label), h('span', value == null || value === '' ? '–' : value));
   const n = (v, d = 0, unit = '') => (Number.isFinite(v) ? `${fmt(v, d)}${unit}` : '–');
   const sec = (ms) => (Number.isFinite(ms) ? `${fmt(ms / 1000, 1)} s` : '–');
+  const hm = (min) => (Number.isFinite(min) ? `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')} uur` : '–');
   const card = (title, ...rows) => h('div.card', h('h3', title), ...rows);
   const out = [];
 
@@ -355,7 +359,9 @@ export function sessionDetail(s) {
     kv('Slaapkwaliteit', SLEEP_Q[s.now?.sleepQuality]),
     kv('Lichten uit', `${s.now?.bedTime || '–'} (${s.now?.bedSource || '?'})`),
     kv('Wakker', `${s.now?.wakeTime || '–'} (${s.now?.wakeSource || '?'})`),
-    kv('Tijd in bed', Number.isFinite(c.timeInBedMin) ? `${Math.floor(c.timeInBedMin / 60)}:${String(c.timeInBedMin % 60).padStart(2, '0')} uur` : '–'),
+    kv('Tijd in bed', hm(c.timeInBedMin)),
+    kv('Wakker gelegen', n(c.awakeMin, 0, ' min')),
+    kv('Geschatte slaap', hm(c.sleepMin)),
     kv('Minuten sinds wakker', n(c.minutesSinceWake)),
   ));
 

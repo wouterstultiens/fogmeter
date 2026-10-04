@@ -1,6 +1,7 @@
 // "Now" check-in (before tests), "Yesterday" block (after tests) and the word-list review.
 import { h, render, choiceScale, slider } from '../ui.js';
 import { detectListWords, markTranscript } from '../scoring.js';
+import { AWAKE } from '../sleep.js';
 
 /** 0–10 "how clear" slider, the same everywhere it is asked. extra: element at the end of its row. */
 export const claritySlider = (onPick, extra = null) => slider(onPick, { anchors: ['heel mistig', 'heel helder'], extra });
@@ -8,12 +9,13 @@ const SLEEP_Q = ['zeer slecht', 'slecht', 'redelijk', 'goed', 'zeer goed'].map((
 
 /**
  * prefill: { bed:'HH:MM', wake:'HH:MM', bedSource, wakeSource } (source: 'shortcut' | 'vorige keer' | 'standaard')
- * Resolves { clarity, sleepQuality, bedTime, wakeTime, bedSource, wakeSource }.
+ * Resolves { clarity, sleepQuality, bedTime, wakeTime, bedSource, wakeSource, awakeMin }.
+ * awakeMin ("Wakker gelegen") starts at 0 every morning, never at yesterday's value.
  * "Overslaan" resolves the same, with null for unanswered questions and skipped: true.
  */
 export function checkIn(prefill, { practice = false } = {}) {
   return new Promise((resolve) => {
-    const ans = { clarity: null, sleepQuality: null };
+    const ans = { clarity: null, sleepQuality: null, awakeMin: 0 };
     const next = h('button.primary', { disabled: true, onclick: () => submit() }, 'Verder');
     const update = () => { next.disabled = ans.clarity === null || ans.sleepQuality === null; };
 
@@ -29,13 +31,15 @@ export function checkIn(prefill, { practice = false } = {}) {
         claritySlider((v) => { ans.clarity = v; update(); }),
       ),
       h('div.card',
-        h('p', 'Hoe heb je geslapen?'),
+        h('p', 'Hoe goed was je slaap, los van de lengte?'),
         choiceScale(SLEEP_Q, 's5', (v) => { ans.sleepQuality = v; update(); }),
       ),
       h('div.card',
         h('p', 'Slaaptijden'),
         h('div.row', h('span.grow', 'Lichten uit'), srcTag(prefill.bedSource), bed),
         h('div.row', h('span.grow', 'Wakker'), srcTag(prefill.wakeSource), wake),
+        h('p', 'Wakker gelegen'),
+        choiceScale(AWAKE, 's5', (v) => { ans.awakeMin = v; }, 0),
       ),
       next,
       h('button.link.muted', { onclick: () => submit(true) }, 'Overslaan'),

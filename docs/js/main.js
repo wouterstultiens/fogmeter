@@ -4,6 +4,7 @@ import { getConfig, setConfig, APP_VERSION } from './config.js';
 import { syncPending, testConnection, restoreAll } from './sync.js';
 import { unlockTts, ttsVoiceName, primeMic, asrSupported, SpeechListener } from './speech.js';
 import { localDateStr, dayIndex, wordListForDay, practiceList } from './schedule.js';
+import { sleepContext } from './sleep.js';
 import { speechTiming, validity, median } from './scoring.js';
 import { captureFromUrl, currentShortcutData, clearShortcutData } from './shortcut.js';
 import { runPvt, PVT_STIMULUS } from './tasks/pvt.js';
@@ -91,20 +92,6 @@ async function prefillTimes(sessions) {
   return { prefill: { wake, bed, wakeSource, bedSource }, steps: sc.steps };
 }
 
-function sleepContext(startedAt, bedTime, wakeTime) {
-  const at = (base, hhmm) => { const [H, M] = hhmm.split(':').map(Number); const d = new Date(base); d.setHours(H, M, 0, 0); return d; };
-  let wakeAt = at(startedAt, wakeTime);
-  if (wakeAt > startedAt) wakeAt = new Date(wakeAt - 86400000);
-  let bedAt = at(wakeAt, bedTime);
-  if (bedAt >= wakeAt) bedAt = new Date(bedAt - 86400000);
-  return {
-    wakeAt: wakeAt.toISOString(),
-    bedAt: bedAt.toISOString(),
-    timeInBedMin: Math.round((wakeAt - bedAt) / 60000),
-    minutesSinceWake: Math.round((startedAt - wakeAt) / 60000),
-  };
-}
-
 async function start(practice) {
   // Both need the user gesture of this tap (iOS): speech synthesis unlock + microphone permission.
   unlockTts();
@@ -146,7 +133,7 @@ async function start(practice) {
     tzOffsetMin: -startedAt.getTimezoneOffset(),
     device: { ua: navigator.userAgent, w: screen.width, h: screen.height, dpr: devicePixelRatio, standalone: !!navigator.standalone },
     now,
-    context: { ...sleepContext(startedAt, now.bedTime, now.wakeTime), steps24h: steps, wakeSource: now.wakeSource, bedSource: now.bedSource },
+    context: { ...sleepContext(startedAt, now.bedTime, now.wakeTime, now.awakeMin), steps24h: steps, wakeSource: now.wakeSource, bedSource: now.bedSource },
     flags,
     skipped,
   };

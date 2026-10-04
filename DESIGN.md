@@ -1,4 +1,14 @@
-# Fogmeter: daily cognitive benchmark, design v0.7 (v1.4 built)
+# Fogmeter: daily cognitive benchmark, design v0.8 (v1.5 built)
+
+> **v0.8 changes (app 1.5.0, sleep):**
+> - **Sleep quality apart from duration.** The question is now "Hoe goed was je slaap, los van de lengte?". The
+>   sleep times already give the duration, so a short but deep night is simply "goed". Same 1–5 scale and field
+>   (`now.sleepQuality`).
+> - **"Wakker gelegen"**: total time awake during the night, not counting falling asleep
+>   (geen / 15 min / 30 min / 1 uur / 1½ uur+, stored as `now.awakeMin` = 0/15/30/60/90). It starts at "geen" every
+>   morning, never at yesterday's value, so one bad night is never carried over. `context.sleepMin` =
+>   `timeInBedMin − awakeMin` (estimated sleep). Sessions from before 1.5 have no `awakeMin`; their `sleepMin` is
+>   unknown, not equal to time in bed.
 
 > **v0.7 changes (app 1.4.0, after the first session):**
 > - **Harder-to-notice PVT stimulus.** The counter is now small (28 px), dim red on black, in a small box, like the
@@ -91,7 +101,7 @@
 
 | # | Step | Time | What it measures |
 |---|------|------|------------------|
-| 1 | **Now**: 3 taps | ~15 s | Fog right now · sleep quality · bedtime/wake time (prefilled, just confirm) |
+| 1 | **Now**: 3 taps | ~15 s | Fog right now · sleep quality · bedtime/wake time (prefilled, just confirm) · time awake in the night (default none) |
 | 2 | **Word list**: learn 12 Dutch words, say them back aloud | ~50 s | Verbal memory: "forgot the instructions" |
 | 3 | **Reaction test (PVT-B)**: tap when the counter starts | 3:00 | Attention lapses and speed: the most sensitive test for sleep loss and fatigue |
 | 4 | **Symbol Search** | ~60 s | Processing speed: "my mind feels slow" |
@@ -167,7 +177,8 @@ performance doesn't colour your rating. "Yesterday" questions come *after*.
 ### 3.1 Now (~15 s)
 - **Clarity**: "Hoe helder voelt je hoofd nu?" 0 = heel mistig → 10 = heel helder. One slider (v0.6; before, the
   scale ran the other way).
-- **Sleep quality** (Consensus Sleep Diary item): zeer slecht / slecht / redelijk / goed / zeer goed.
+- **Sleep quality** (Consensus Sleep Diary item): "Hoe goed was je slaap, los van de lengte?" zeer slecht / slecht /
+  redelijk / goed / zeer goed. Quality only: the duration comes from the sleep times.
 - **Sleep times**: *lights out* and *woke up*, both **prefilled with yesterday's values**.
   Usually just tap "klopt" ("correct"); adjust only if different.
   - **v1 records them by asking you.** They are your own estimate, not a measurement.
@@ -180,6 +191,10 @@ performance doesn't colour your rating. "Yesterday" questions come *after*.
     15 min; a rough but consistent estimate is enough to see the effect of short vs. long nights.
   - The app itself logs the **session start time** automatically. Together with the wake time, that gives
     **minutes since waking** (sleep-inertia covariate) and time in bed.
+  - **Wakker gelegen** (v0.8): total time awake during the night (the Consensus Sleep Diary's WASO), in rough
+    steps (geen / 15 min / 30 min / 1 uur / 1½ uur+), starting at "geen" each morning. Time in bed minus this is
+    the **estimated sleep**. Falling asleep is deliberately not included, so "lights out" stays the start of the
+    night. One rough total instead of the diary's separate count and duration of awakenings: at most one tap.
   - **Later option (automatic, still free)**:
     - The iPhone can estimate "time in bed" from when you stop and start using the phone, via the Health app's
       sleep schedule and its "track time in bed with iPhone" option, where your iOS version offers it.
