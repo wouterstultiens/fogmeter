@@ -19,6 +19,11 @@ const LOG_PROMPT = `Create a shortcut named "Fogmeter log" that runs silently, w
 3. Append to Text File: append the formatted date to the file fogmeter/use.log in the Shortcuts folder of iCloud Drive, with "Make New Line" on.
 Nothing else: no notification, no output.`;
 
+const AUTOMATION_PROMPT = `Create a personal automation in Shortcuts:
+- Trigger: App. Choose the apps Safari, Obsidian, Todoist and Clock. Turn on both "Is Opened" and "Is Closed".
+- Set it to "Run Immediately", with "Notify When Run" off.
+- Action: Run Shortcut "Fogmeter log" (no input, don't show when run).`;
+
 const OPEN_PROMPT = `Create a shortcut named "Fogmeter" that does this, in order:
 1. Get File: fogmeter/use.log from the Shortcuts folder of iCloud Drive, with "Error If Not Found" off.
 2. Get Text from that file, then URL Encode it. Save it in a variable called UseLog.
@@ -68,7 +73,9 @@ export function helpView() {
       h('p', h('strong', '1. Opdracht "Fogmeter log"')),
       h('p.small', 'Plak in Opdrachten bij het maken van een opdracht met Apple Intelligence:'),
       prompt(LOG_PROMPT),
-      h('p', h('strong', '2. Automatisering (met de hand, ± 1 min)')),
+      h('p', h('strong', '2. Automatisering: Safari, Obsidian, Todoist en Klok')),
+      prompt(AUTOMATION_PROMPT),
+      h('p.small', 'Lukt dat niet (niet elke versie kan automatiseringen maken), doe het met de hand, ± 1 min:'),
       steps(
         'Opdrachten → Automatisering → + → App.',
         'Kies Safari, Obsidian, Todoist en Klok. Vink "Is geopend" én "Is gesloten" aan.',
