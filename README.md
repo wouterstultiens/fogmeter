@@ -44,8 +44,8 @@ full per-session details, all notes, and (after the run-in) the 7-day trend vs. 
    under Instellingen → Back-up, and tap "Test verbinding".
 3. **iPhone.**
    - Safari microphone: allow it (Settings → Apps → Safari → Microphone).
-   - Build the Shortcut: automatic wake time when you stop your alarm, plus step count from Apple Health.
-     Step-by-step instructions are in the app under Instellingen → **Uitleg**.
+   - Build the Shortcuts: a phone-use log (bed and wake time) plus step count from Apple Health.
+     Copy-paste prompts for Apple Intelligence are in the app under Instellingen → **Uitleg**.
 4. Do one **Oefenronde** (practice run, not saved) to check that Dutch speech recognition works on your phone.
    If it doesn't, switch to typing in Instellingen.
 

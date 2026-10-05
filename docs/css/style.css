@@ -193,7 +193,7 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 
 .banner { border-radius: 12px; padding: 10px 12px; font-size: 14px; background: var(--panel-2); border: 1px solid var(--line); }
 .banner.practice { border-color: var(--warn); color: var(--warn); }
-pre.code { white-space: pre-wrap; word-break: break-all; font-size: 12px; background: var(--panel-2); padding: 10px; border-radius: 10px; }
+pre.code { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; background: var(--panel-2); padding: 10px; border-radius: 10px; }
 
 /* Spoken recall: microphone circle lights up when the recogniser hears something */
 .mic { width: 132px; height: 132px; border-radius: 50%; display: flex; align-items: center; justify-content: center;

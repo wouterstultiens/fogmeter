@@ -78,17 +78,12 @@ const TIMED = new Set(['encode', 'immediate', 'pvt', 'symbols', 'delayed']);
 const AUTO_START_AFTER = 3;
 const AUTO_START_S = 4;
 
-async function prefillTimes(sessions) {
+function prefillTimes() {
   const cfg = getConfig();
   const sc = currentShortcutData();
-  const prev = sessions.filter((s) => s.now?.bedTime).sort((a, b) => a.startedAt.localeCompare(b.startedAt)).pop();
-  const pick = (scDate, prevVal, def) => {
-    if (scDate) return [fmtTime(scDate), 'shortcut'];
-    if (prevVal) return [prevVal, 'vorige keer'];
-    return [def, 'standaard'];
-  };
-  const [wake, wakeSource] = pick(sc.wake, prev?.now?.wakeTime, cfg.defaultWake);
-  const [bed, bedSource] = pick(sc.bed, prev?.now?.bedTime, cfg.defaultBed);
+  const pick = (scDate, def) => (scDate ? [fmtTime(scDate), 'telefoon'] : [def, 'standaard']);
+  const [wake, wakeSource] = pick(sc.wake, cfg.defaultWake);
+  const [bed, bedSource] = pick(sc.bed, cfg.defaultBed);
   return { prefill: { wake, bed, wakeSource, bedSource }, steps: sc.steps };
 }
 
@@ -100,7 +95,7 @@ async function start(practice) {
   const date = localDateStr(startedAt);
   const words = practice ? practiceList() : wordListForDay(dayIndex(date));
   const sessions = await db.all();
-  const { prefill, steps } = await prefillTimes(sessions);
+  const { prefill, steps } = prefillTimes();
   const experienced = sessions.filter((x) => x.kind === 'full').length >= AUTO_START_AFTER;
   // Resolves 'start' or 'skip'.
   const intro = (title, lines) => instructions(title, lines, { autoSeconds: experienced && !E2E ? AUTO_START_S : 0, skippable: true });
@@ -246,7 +241,7 @@ async function start(practice) {
   }
 
   await db.put({ ...s, synced: false });
-  if (s.context.wakeSource === 'shortcut') clearShortcutData();
+  if (s.context.wakeSource === 'telefoon' || s.context.bedSource === 'telefoon') clearShortcutData();
   await results(s);
   syncState = await syncPending();
 }
@@ -306,7 +301,7 @@ function settings() {
       h('h3', 'Standaard slaaptijden'),
       h('div.row', h('span.grow', 'Lichten uit'), bed),
       h('div.row', h('span.grow', 'Wakker'), wake),
-      h('p.small.muted', 'Alleen gebruikt als er nog geen vorige sessie of Shortcut-tijd is.'),
+      h('p.small.muted', 'Gebruikt als de Shortcut geen tijd doorgeeft.'),
     ),
     h('div.card',
       h('h3', 'Back-up naar GitHub (privé-repo)'),

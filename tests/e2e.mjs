@@ -60,7 +60,9 @@ const dragSlider = async (from, to, n = 0) => {
 const sliderValue = (n = 0) => page.locator('.slider-value').nth(n).textContent();
 
 const wake = new Date(Date.now() - 20 * 60000);
-await page.goto(`${BASE}?e2e&wake=${encodeURIComponent(stamp(wake))}&steps=8412`);
+// Bed detection is unit-tested; here only the wake time (the e2e can run at any hour).
+const useLog = stamp(wake);
+await page.goto(`${BASE}?e2e&use=${encodeURIComponent(useLog)}&steps=8412`);
 await page.waitForSelector('text=Fogmeter');
 await snap('home');
 const homeButtons = await page.locator('#app button').allTextContents();
@@ -88,6 +90,9 @@ const checkinEmpty = (await sliderValue()) === '–' && await page.locator('.sli
 await dragSlider(2, 7);
 await clickText('goed');
 await clickText('30 min');
+const sleepLine = await page.locator('span', { hasText: /^Slaap \d/ }).textContent();
+await clickText('Aanpassen');
+await page.locator('input[type=time]').first().fill('23:30');
 await snap('checkin');
 await clickText('Verder');
 
@@ -209,7 +214,8 @@ const checks = {
   naOk,
   naCleared,
   kind: s.kind === 'full',
-  wakeFromShortcut: s.now.wakeSource === 'shortcut',
+  wakeFromPhone: s.now.wakeSource === 'telefoon' && sleepLine.endsWith(`→ ${stamp(wake).slice(11)}`),
+  bedCorrected: s.now.bedTime === '23:30' && s.now.bedSource === 'handmatig',
   minutesSinceWake: s.context.minutesSinceWake >= 19 && s.context.minutesSinceWake <= 25,
   steps: s.context.steps24h === 8412,
   awake: s.now.awakeMin === 30 && s.context.sleepMin === s.context.timeInBedMin - 30,

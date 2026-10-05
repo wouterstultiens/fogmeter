@@ -8,7 +8,8 @@ export const claritySlider = (onPick, extra = null) => slider(onPick, { anchors:
 const SLEEP_Q = ['zeer slecht', 'slecht', 'redelijk', 'goed', 'zeer goed'].map((label, i) => ({ label, value: i + 1 }));
 
 /**
- * prefill: { bed:'HH:MM', wake:'HH:MM', bedSource, wakeSource } (source: 'shortcut' | 'vorige keer' | 'standaard')
+ * prefill: { bed:'HH:MM', wake:'HH:MM', bedSource, wakeSource } (source: 'telefoon' | 'standaard').
+ * The times show as one line; "Aanpassen" opens the two fields to correct them.
  * Resolves { clarity, sleepQuality, bedTime, wakeTime, bedSource, wakeSource, awakeMin }.
  * awakeMin ("Wakker gelegen") starts at 0 every morning, never at yesterday's value.
  * "Overslaan" resolves the same, with null for unanswered questions and skipped: true.
@@ -21,7 +22,18 @@ export function checkIn(prefill, { practice = false } = {}) {
 
     const bed = h('input', { type: 'time', value: prefill.bed });
     const wake = h('input', { type: 'time', value: prefill.wake });
-    const srcTag = (s) => h(`span.tag${s === 'shortcut' ? '.ok' : ''}`, s === 'shortcut' ? 'via Shortcut' : s);
+    const srcTag = (s) => h(`span.tag${s === 'telefoon' ? '.ok' : ''}`, s === 'telefoon' ? 'via telefoon' : s);
+    const summary = h('span.grow');
+    const showSummary = () => { summary.textContent = `Slaap ${bed.value || prefill.bed} → ${wake.value || prefill.wake}`; };
+    showSummary();
+    bed.addEventListener('input', showSummary);
+    wake.addEventListener('input', showSummary);
+    const edit = h('div', { hidden: true },
+      h('div.row', h('span.grow', 'Lichten uit'), srcTag(prefill.bedSource), bed),
+      h('div.row', h('span.grow', 'Wakker'), srcTag(prefill.wakeSource), wake),
+    );
+    const sources = [...new Set([prefill.bedSource, prefill.wakeSource])];
+    const editBtn = h('button.link', { onclick: () => { edit.hidden = false; editBtn.remove(); } }, 'Aanpassen');
 
     render(
       practice ? h('div.banner.practice', 'Oefenronde: wordt niet opgeslagen') : null,
@@ -35,9 +47,8 @@ export function checkIn(prefill, { practice = false } = {}) {
         choiceScale(SLEEP_Q, 's5', (v) => { ans.sleepQuality = v; update(); }),
       ),
       h('div.card',
-        h('p', 'Slaaptijden'),
-        h('div.row', h('span.grow', 'Lichten uit'), srcTag(prefill.bedSource), bed),
-        h('div.row', h('span.grow', 'Wakker'), srcTag(prefill.wakeSource), wake),
+        h('div.row', summary, ...sources.map(srcTag), editBtn),
+        edit,
         h('p', 'Wakker gelegen'),
         choiceScale(AWAKE, 's5', (v) => { ans.awakeMin = v; }, 0),
       ),

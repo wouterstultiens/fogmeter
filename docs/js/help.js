@@ -6,6 +6,27 @@ const APP_URL = 'https://wouterstultiens.github.io/fogmeter/';
 const section = (title, ...body) => h('div.card', h('h3', title), ...body);
 const steps = (...items) => h('ol', { style: { margin: 0, paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '6px' } }, ...items.map((i) => h('li', i)));
 const code = (t) => h('pre.code', t);
+const prompt = (text) => {
+  const btn = h('button.link', { onclick: async () => {
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Gekopieerd'; } catch { btn.textContent = 'Kopiëren lukte niet: selecteer de tekst'; }
+  } }, 'Kopieer prompt');
+  return h('div', code(text), btn);
+};
+
+const LOG_PROMPT = `Create a shortcut named "Fogmeter log" that runs silently, without asking or showing anything:
+1. Get the Current Date.
+2. Format Date with a custom format: yyyy-MM-dd'T'HH:mm
+3. Append to Text File: append the formatted date to the file fogmeter/use.log in the Shortcuts folder of iCloud Drive, with "Make New Line" on.
+Nothing else: no notification, no output.`;
+
+const OPEN_PROMPT = `Create a shortcut named "Fogmeter" that does this, in order:
+1. Get File: fogmeter/use.log from the Shortcuts folder of iCloud Drive, with "Error If Not Found" off.
+2. Get Text from that file, then URL Encode it. Save it in a variable called UseLog.
+3. Find Health Samples where Type is Steps and Start Date is in the last 1 day. Calculate Statistics: Sum of those samples, then Round Number to whole numbers. Save it in a variable called Steps.
+4. Text: ${APP_URL}?use=[UseLog]&steps=[Steps]  (insert the variables UseLog and Steps where the brackets are).
+5. Save File: save the text "-" to fogmeter/use.log in the Shortcuts folder of iCloud Drive, with "Ask Where to Save" off and "Overwrite If File Exists" on. This empties the log for the next night.
+6. Open URLs: open the text from step 4.
+Add it to the Home Screen.`;
 
 export function helpView() {
   return [
@@ -42,30 +63,22 @@ export function helpView() {
       ),
     ),
 
-    section('Eenmalig: Shortcuts (automatische wektijd + stappen)',
-      h('p.small', 'Twee onderdelen in de app Opdrachten (Shortcuts). Namen van acties kunnen iets verschillen; zoek ze op naam.'),
-      h('p', h('strong', 'A. Automatisering: wektijd vastleggen')),
+    section('Eenmalig: Shortcuts (automatische slaaptijden + stappen)',
+      h('p.small', 'De app leidt je slaaptijden af uit wanneer je je telefoon gebruikt: de laatste keer ’s avonds is "lichten uit", de eerste keer na 05:00 is "wakker". Een kort moment na 01:00 (op de klok kijken) telt als wakker liggen, niet als bedtijd. Klopt het een keer niet, tik dan op "Aanpassen".'),
+      h('p', h('strong', '1. Opdracht "Fogmeter log"')),
+      h('p.small', 'Plak in Opdrachten bij het maken van een opdracht met Apple Intelligence:'),
+      prompt(LOG_PROMPT),
+      h('p', h('strong', '2. Automatisering (met de hand, ± 1 min)')),
       steps(
-        'Opdrachten → Automatisering → + → Wekker → "Wordt gestopt" → Elke wekker (of je ochtendwekker) → Voer direct uit.',
-        'Actie "Datum" (Huidige datum) → actie "Formatteer datum": Aangepast, notatie:',
-        code("yyyy-MM-dd'T'HH:mm"),
-        'Actie "Bewaar bestand": invoer = geformatteerde datum, "Vraag waar" uit, pad:',
-        code('fogmeter/wake.txt'),
-        '"Vervang bestaande bestanden" aan.',
+        'Opdrachten → Automatisering → + → App.',
+        'Kies Safari, Obsidian, Todoist en Klok. Vink "Is geopend" én "Is gesloten" aan.',
+        '"Voer direct uit" aan, "Melding bij uitvoeren" uit → Volgende.',
+        'Actie "Voer opdracht uit" → Fogmeter log.',
       ),
-      h('p', h('strong', 'B. Opdracht "Fogmeter" (op je beginscherm)')),
-      steps(
-        'Nieuwe opdracht, naam "Fogmeter".',
-        'Actie "Haal bestand op" (Get File): pad fogmeter/wake.txt, "Fout als niet gevonden" uit. Zet in variabele Wake.',
-        'Actie "Zoek gezondheidsvoorbeelden" (Find Health Samples): Type = Stappen, Begindatum = in de afgelopen 1 dagen.',
-        'Actie "Bereken statistieken": Som → daarna "Rond getal af". Zet in variabele Steps.',
-        'Actie "Tekst" met (variabelen invoegen op de plek van [ ]):',
-        code(`${APP_URL}?wake=[Wake]&steps=[Steps]`),
-        'Actie "Open URL\'s" met die tekst.',
-        'Deel → Zet op beginscherm. Eerste keer: geef toegang tot Gezondheid (stappen).',
-      ),
-      h('p.small.muted', 'Optioneel C, bedtijd: Automatisering → Oplader → "Is verbonden" → Formatteer datum (zelfde notatie) → Bewaar bestand fogmeter/bed.txt. Voeg in B "Haal bestand op" voor bed.txt toe en &bed=[Bed] aan de URL. Alleen zinvol als je je telefoon vlak voor het slapen aan de lader legt.'),
-      h('p.small.muted', 'Werkt de Shortcut niet? Dan vul je de tijden gewoon zelf in (vooringevuld met gisteren).'),
+      h('p.small.muted', 'Kost vrijwel geen batterij: elke keer één regel tekst wegschrijven, een paar milliseconden.'),
+      h('p', h('strong', '3. Opdracht "Fogmeter" (op je beginscherm)')),
+      prompt(OPEN_PROMPT),
+      h('p.small.muted', 'Eerste keer: geef toegang tot Gezondheid (stappen) en tot het bestand. De oude wekker- en oplader-automatiseringen voor wake.txt en bed.txt kun je verwijderen. Geen gegevens van de telefoon? Dan staat er 23:00 → 07:00 (aan te passen bij Instellingen).'),
     ),
 
     section('Eenmalig: back-up (privé GitHub-repo)',

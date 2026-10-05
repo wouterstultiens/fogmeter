@@ -1,4 +1,18 @@
-# Fogmeter: daily cognitive benchmark, design v0.8 (v1.5 built)
+# Fogmeter: daily cognitive benchmark, design v0.9 (v1.6 built)
+
+> **v0.9 changes (app 1.6.0, sleep times from phone use):**
+> - **No more time fields to confirm.** An automation stamps every time Safari, Obsidian, Todoist or Clock opens or
+>   closes (`fogmeter/use.log`); the morning Shortcut hands the log over (`?use=…`) and empties it.
+> - **Woke up** = first use from 05:00. **Lights out** = the use (from 21:00) where the longest quiet stretch
+>   before waking starts; a short burst (≤ 20 min) after 01:00 with ≥ 90 min quiet before it is checking the
+>   time in the night, so the bedtime is the use before it. No use after 21:00: the last use from 18:00.
+> - The check-in shows one line ("Slaap 23:14 → 06:58", source "via telefoon" or "standaard"); "Aanpassen"
+>   opens the fields to correct it (source "handmatig"). Without phone data: 23:00 → 07:00 from Instellingen,
+>   no longer yesterday's values. "Wakker gelegen" stays.
+> - Replaces the alarm-stopped and charger automations. Uitleg has copy-paste prompts for Apple Intelligence
+>   instead of a checklist.
+> - Blind spots: using the phone without opening one of the four apps, and reading a paper book after the last
+>   phone use. Rough but consistent is enough (§3.1).
 
 > **v0.8 changes (app 1.5.0, sleep):**
 > - **Sleep quality apart from duration.** The question is now "Hoe goed was je slaap, los van de lengte?". The
@@ -463,7 +477,7 @@ Bringing 4–6 weeks of app data to that appointment is genuinely useful.
 - **Launch (built in v1)**: via an **iOS Shortcut** on the home screen, which opens the app in Safari.
   - An automation stamps the time you stop your alarm (wake time).
   - The Shortcut reads the last-24 h step count from Apple Health, which replaces the activity question.
-  - Optional: a charger-connected automation stamps bedtime.
+  - Since v0.9 the bed and wake times come from a phone-use log instead (see the v0.9 note at the top).
   - The app runs in a Safari tab rather than as a home-screen web app, because a Shortcut can only open Safari, and
     the two keep separate storage.
   - Setup steps are in the app under Instellingen → "Uitleg".
