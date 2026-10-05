@@ -1,7 +1,7 @@
 // Data handed over by the iOS Shortcut via URL parameters, e.g.
 //   ?use=2026-09-28T22:51%0A2026-09-28T23:14%0A2026-09-29T06:58&steps=8412
-// `use` is the phone-use log: one stamp per time a logged app (Safari, Obsidian, Todoist, Clock) opened or
-// closed. Bed and wake times are derived from it. Values are kept for the rest of the morning, then the URL is
+// `use` is the phone-use log of yesterday and today (one file per day, never emptied): one stamp per time a
+// logged app (Safari, Obsidian, Todoist, Clock) opened or closed. Bed and wake times are derived from it. Values are kept for the rest of the morning, then the URL is
 // cleaned.
 
 const KEY = 'fogmeter.shortcut';
@@ -70,14 +70,7 @@ export function sleepFromUse(stamps, now = new Date()) {
 export function captureFromUrl() {
   const q = new URLSearchParams(location.search);
   if (!q.has('use') && !q.has('steps')) return;
-  // A second run the same morning hands over a nearly empty log (the Shortcut empties it): keep the first one.
-  const prev = readRaw();
-  const fresh = prev && Date.now() - prev.receivedAt <= MAX_AGE_MS;
-  const data = {
-    use: [fresh ? prev.use : '', q.get('use') || ''].filter(Boolean).join('\n'),
-    steps: q.get('steps') || (fresh ? prev.steps : null),
-    receivedAt: Date.now(),
-  };
+  const data = { use: q.get('use') || '', steps: q.get('steps') || null, receivedAt: Date.now() };
   try { sessionStorage.setItem(KEY, JSON.stringify(data)); localStorage.setItem(KEY, JSON.stringify(data)); } catch { /* ignore */ }
   history.replaceState(null, '', location.pathname);
 }

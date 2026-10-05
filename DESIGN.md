@@ -2,7 +2,9 @@
 
 > **v0.9 changes (app 1.6.0, sleep times from phone use):**
 > - **No more time fields to confirm.** An automation stamps every time Safari, Obsidian, Todoist or Clock opens or
->   closes (`fogmeter/use.log`); the morning Shortcut hands the log over (`?use=…`) and empties it.
+>   closes (one file per day, `fogmeter/use-YYYY-MM-DD.log`); the morning Shortcut hands yesterday's and today's
+>   file over (`?use=…`) and sets the brightness to 57% for the reaction test. Nothing is ever emptied, so an
+>   accidental run of the Shortcut loses nothing (app 1.6.2).
 > - **Woke up** = first use from 05:00. **Lights out** = the use (from 21:00) where the longest quiet stretch
 >   before waking starts; a short burst (≤ 20 min) after 01:00 with ≥ 90 min quiet before it is checking the
 >   time in the night, so the bedtime is the use before it. No use after 21:00: the last use from 18:00.

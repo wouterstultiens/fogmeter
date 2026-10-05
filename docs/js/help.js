@@ -15,8 +15,9 @@ const prompt = (text) => {
 
 const LOG_PROMPT = `Create a shortcut named "Fogmeter log" that runs silently, without asking or showing anything:
 1. Get the Current Date.
-2. Format Date with a custom format: yyyy-MM-dd'T'HH:mm
-3. Append to Text File: append the formatted date to the file fogmeter/use.log in the Shortcuts folder of iCloud Drive, with "Make New Line" on.
+2. Format Date (the current date) with a custom format: yyyy-MM-dd'T'HH:mm. Save it in a variable called Stamp.
+3. Format Date (the current date) with a custom format: yyyy-MM-dd. Save it in a variable called Day.
+4. Append to Text File: append Stamp to the file fogmeter/use-[Day].log in the Shortcuts folder of iCloud Drive (insert the variable Day where the brackets are), with "Make New Line" on. Create the file if it doesn't exist.
 Nothing else: no notification, no output.`;
 
 const AUTOMATION_PROMPT = `Create a personal automation in Shortcuts:
@@ -25,12 +26,13 @@ const AUTOMATION_PROMPT = `Create a personal automation in Shortcuts:
 - Action: Run Shortcut "Fogmeter log" (no input, don't show when run).`;
 
 const OPEN_PROMPT = `Create a shortcut named "Fogmeter" that does this, in order:
-1. Get File: fogmeter/use.log from the Shortcuts folder of iCloud Drive, with "Error If Not Found" off.
-2. Get Text from that file, then URL Encode it. Save it in a variable called UseLog.
-3. Find Health Samples where Type is Steps and Start Date is in the last 1 day. Calculate Statistics: Sum of those samples, then Round Number to whole numbers. Save it in a variable called Steps.
-4. Text: ${APP_URL}?use=[UseLog]&steps=[Steps]  (insert the variables UseLog and Steps where the brackets are).
-5. Save File: save the text "-" to fogmeter/use.log in the Shortcuts folder of iCloud Drive, with "Ask Where to Save" off and "Overwrite If File Exists" on. This empties the log for the next night.
-6. Open URLs: open the text from step 4.
+1. Set Brightness to 57%.
+2. Get the Current Date. Format Date with a custom format yyyy-MM-dd and save it in a variable called Today. Adjust Date: subtract 1 day from the current date, format it as yyyy-MM-dd and save it in a variable called Yesterday.
+3. Get File: fogmeter/use-[Yesterday].log from the Shortcuts folder of iCloud Drive, with "Error If Not Found" off. Then Get File: fogmeter/use-[Today].log, also with "Error If Not Found" off. Never delete or change these files.
+4. Text: the text of both files, yesterday's first, on separate lines. URL Encode it and save it in a variable called UseLog.
+5. Find Health Samples where Type is Steps and Start Date is in the last 1 day. Calculate Statistics: Sum of those samples, then Round Number to whole numbers. Save it in a variable called Steps.
+6. Text: ${APP_URL}?use=[UseLog]&steps=[Steps]  (insert the variables UseLog and Steps where the brackets are).
+7. Open URLs: open the text from step 6.
 Add it to the Home Screen.`;
 
 export function helpView() {
@@ -85,7 +87,7 @@ export function helpView() {
       h('p.small.muted', 'Kost vrijwel geen batterij: elke keer één regel tekst wegschrijven, een paar milliseconden.'),
       h('p', h('strong', '3. Opdracht "Fogmeter" (op je beginscherm)')),
       prompt(OPEN_PROMPT),
-      h('p.small.muted', 'Eerste keer: geef toegang tot Gezondheid (stappen) en tot het bestand. De oude wekker- en oplader-automatiseringen voor wake.txt en bed.txt kun je verwijderen. Geen gegevens van de telefoon? Dan staat er 23:00 → 07:00 (aan te passen bij Instellingen).'),
+      h('p.small.muted', 'Eerste keer: geef toegang tot Gezondheid (stappen) en tot het bestand. Per dag één klein logbestand (fogmeter/use-datum.log); per ongeluk Fogmeter openen kan dus geen kwaad. Oude bestanden mag je altijd weggooien. De oude wekker- en oplader-automatiseringen en use.log kun je verwijderen. Geen gegevens van de telefoon? Dan staat er 23:00 → 07:00 (aan te passen bij Instellingen).'),
     ),
 
     section('Eenmalig: back-up (privé GitHub-repo)',
