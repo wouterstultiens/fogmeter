@@ -29,7 +29,7 @@ const OPEN_PROMPT = `Create a shortcut named "Fogmeter" that does this, in order
 2. Get the Current Date. Format Date with a custom format yyyy-MM-dd and save it in a variable called Today. Adjust Date: subtract 1 day from the current date, format it as yyyy-MM-dd and save it in a variable called Yesterday.
 3. Get File: fogmeter/use.log from the Shortcuts folder of iCloud Drive, with "Error If Not Found" off. Never delete or change this file.
 4. Get Text from Input: the file from step 3. This must be the text inside the file, not the file itself.
-5. Match Text: in the text from step 4, find all matches of the regular expression ([Yesterday]|[Today])T\\d{2}:\\d{2} (insert the variables Yesterday and Today where the brackets are). Case sensitive off.
+5. Match Text: in the text from step 4, find all matches of the regular expression ([Yesterday]|[Today])T\\d\\d:\\d\\d (no curly braces; insert the variables Yesterday and Today where the brackets are). Case sensitive off.
 6. Combine Text: combine the matches from step 5 with New Lines.
 7. URL Encode the combined text from step 6 and save it in a variable called UseLog.
 8. Find Health Samples where Type is Steps and Start Date is in the last 1 day. Calculate Statistics: Sum of those samples, then Round Number to whole numbers. Save it in a variable called Steps.
