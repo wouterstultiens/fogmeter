@@ -1,6 +1,6 @@
 // Data handed over by the iOS Shortcut via URL parameters, e.g.
 //   ?use=2026-09-28T22:51%0A2026-09-28T23:14%0A2026-09-29T06:58&steps=8412
-// `use` is the phone-use log of yesterday and today (one file per day, never emptied): one stamp per time a
+// `use` is the phone-use log of yesterday and today (the lines of those days from fogmeter/use.log, never emptied): one stamp per time a
 // logged app (Safari, Obsidian, Todoist, Clock) opened or closed. Bed and wake times are derived from it. Values are kept for the rest of the morning, then the URL is
 // cleaned.
 
