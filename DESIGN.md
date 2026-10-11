@@ -1,4 +1,29 @@
-# Fogmeter: daily cognitive benchmark, design v0.10 (v1.6 built)
+# Fogmeter: daily cognitive benchmark, design v0.11 (v1.7 built)
+
+> **v0.11 changes (app 1.7.0, mental arithmetic replaces Symbol Search):**
+> - **Why.** Over the first 13 sessions, with the practice trend removed, Symbol Search correlated 0.03 with morning
+>   clarity (PVT speed 0.60) and was still getting ~29 ms/day faster. With 0–2 errors a day only speed was left, and
+>   the noise within a session (SD ~500 ms over 30 trials) was about as large as the differences between days. It also
+>   felt too easy. Sleep loss hits working memory harder than processing speed (g −0.55 vs. −0.30, Lim & Dinges 2010).
+>   Pure reasoning puzzles barely move (−0.13, n.s.), and puzzles vary too much in difficulty for daily use.
+> - **Task** (`tasks/math.js`): mental arithmetic for a fixed 2 minutes, typed on a phone-style keypad. Three kinds,
+>   in shuffled blocks of one of each, so the mix is balanced wherever the time runs out:
+>   - 2-digit × 1-digit with a carry, never a round answer (47 × 8)
+>   - 3-digit + 2-digit with carries into the tens and the hundreds (386 + 47)
+>   - 3-digit − 2-digit with two borrows (432 − 57)
+>
+>   Every step carries or borrows, so a part result must be held while the rest is worked out, and no problem is
+>   simple enough to answer from memory (~26,000 possible problems, none twice in a session). Every answer has three
+>   digits and is submitted on the third, so each problem costs the same taps; ⌫ removes the last digit. No feedback.
+> - **Primary metric:** correct answers per minute of answering time (`math.summary.ratePerMin`): slower and wrong
+>   both lower it. Also stored: accuracy, median correct time (overall and per kind), ⌫ corrections, every problem.
+> - **Validity:** under 50% correct = not really trying, so the session is invalid. A higher bar would throw out the
+>   foggy days themselves.
+> - **Its own run-in.** Each metric's run-in now counts from the first session that has it, so arithmetic has 14
+>   sessions of practice before its baseline starts. Until then it has no z-score and stays out of the Objective
+>   Cognition Index. The other tasks keep their run-in. In the OCI, the "speed" domain becomes "math" (working memory).
+> - Symbol Search data (until 2026-10-11) stays in the results as a raw chart and in the session details.
+> - The session gets about a minute longer (~7 min).
 
 > **v0.10 changes (app 1.6.4, word list):**
 > - **Same syllable mix every day.** From 2026-10-12 every list has 5 one-syllable and 7 two-syllable words (the

@@ -182,6 +182,25 @@ export function summarizeSymbols(trials) {
   };
 }
 
+/**
+ * Mental arithmetic trials: [{op:'mul'|'add'|'sub', rt, correct, corrections}].
+ * ratePerMin (primary) = correct answers per minute spent answering: slower and wrong both lower it.
+ */
+export function summarizeMath(trials) {
+  const correct = trials.filter((t) => t.correct);
+  const totalMs = trials.reduce((sum, t) => sum + t.rt, 0);
+  const med = (op) => round(median(correct.filter((t) => t.op === op).map((t) => t.rt)), 0);
+  return {
+    n: trials.length,
+    correct: correct.length,
+    accuracy: round(correct.length / Math.max(1, trials.length), 3),
+    ratePerMin: totalMs > 0 ? round(correct.length / (totalMs / 60000), 2) : null,
+    medianRT: round(median(correct.map((t) => t.rt)), 1),
+    medianRTByOp: { mul: med('mul'), add: med('add'), sub: med('sub') },
+    corrections: trials.reduce((sum, t) => sum + (t.corrections || 0), 0),
+  };
+}
+
 export function round(x, d = 2) {
   if (!Number.isFinite(x)) return null;
   const f = 10 ** d;
@@ -197,6 +216,7 @@ export const SKIP_STAGES = {
   delayed: ['delayed'],
   pvt: ['pvt'],
   symbols: ['symbols'],
+  math: ['math'],
   yesterday: [],
 };
 
@@ -214,6 +234,9 @@ export function validity(session) {
   }
   const s = session.symbols?.summary;
   if (s && s.accuracy < 0.75) reasons.push('symbolen < 75% goed');
+  // Only catches not really trying: real fog lowers accuracy, and those days must stay in.
+  const m = session.math?.summary;
+  if (m && m.accuracy < 0.5) reasons.push('rekenen < 50% goed');
   return { valid: reasons.length === 0, reasons };
 }
 
@@ -233,7 +256,7 @@ export const noteClarity = (n) => clarity(n.clarity, n.fog);
 export const METRICS = {
   pvtSpeed: (s) => s.pvt?.summary?.meanSpeed,
   pvtLapses: (s) => neg(s.pvt?.summary?.lapses),
-  symRT: (s) => neg(logOrNull(s.symbols?.summary?.medianRT)),
+  mathRate: (s) => s.math?.summary?.ratePerMin,
   memory: (s) => (Number.isFinite(s.memory?.immediate) && Number.isFinite(s.memory?.delayed) ? s.memory.immediate + s.memory.delayed : null),
   clarityNow,
   clarityDay,
@@ -275,6 +298,8 @@ export function dailySessions(sessions) {
 
 /**
  * Computes phase, baseline references and per-day indices.
+ * Each metric's run-in counts from the first session that has it, so a task added later (arithmetic, 2026-10-12,
+ * replacing Symbol Search) gets RUN_IN sessions of practice before its baseline starts.
  * Returns { phase, runInDone, baselineCount, days:[{date, obj, subj, domains, session}] }
  */
 export function computeIndices(sessions) {
@@ -285,17 +310,23 @@ export function computeIndices(sessions) {
   const phase = full.length < RUN_IN ? 'runin' : post.length < BASELINE_N ? 'baseline' : 'tracking';
 
   const refs = {};
-  for (const [k, f] of Object.entries(METRICS)) refs[k] = robustScale(base.map(f));
+  const metricRunInEnd = {};
+  for (const [k, f] of Object.entries(METRICS)) {
+    const start = Math.max(0, full.findIndex((s) => Number.isFinite(f(s)))) + RUN_IN;
+    refs[k] = robustScale(full.slice(start, start + BASELINE_N).map(f));
+    metricRunInEnd[k] = full[start - 1]?.date;
+  }
 
   const runInEnd = full[RUN_IN - 1]?.date;
   const out = days.map((s) => {
     const zz = {};
     for (const k of Object.keys(METRICS)) {
-      zz[k] = z(METRICS[k](s), refs[k]);
+      const practising = !metricRunInEnd[k] || s.date <= metricRunInEnd[k];
+      zz[k] = practising ? null : z(METRICS[k](s), refs[k]);
     }
     const domains = {
       attention: avg([zz.pvtSpeed, zz.pvtLapses]),
-      speed: zz.symRT,
+      math: zz.mathRate,
       memory: zz.memory,
     };
     const usable = s.valid;

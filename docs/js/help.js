@@ -106,7 +106,7 @@ export function helpView() {
       steps(
         'Woordenlijst: 12 woorden onthouden, direct en na ± 4 min (geheugen). Je zegt ze hardop; de app luistert en jij controleert aan het eind.',
         'Reactietest (3 min): aandacht en "wegvallers" (missers ≥ 355 ms). Reactietijden springen in stapjes van ± 17 ms (bv. 284, 301, 317): het scherm ververst 60 keer per seconde. Over de ± 50 tikken per sessie middelt dat uit.',
-        'Symbolen: verwerkingssnelheid ("traag hoofd").',
+        'Rekenen (2 min): werkgeheugen. Elke som heeft meer stappen, dus je moet een tussenuitkomst vasthouden. Tot 11 oktober 2026 stond hier Symbolen (verwerkingssnelheid); die bleef te makkelijk om goede en slechte dagen te onderscheiden.',
         'Automatisch: tik-nauwkeurigheid (onhandigheid), tijd sinds wakker worden, en uit de spraakherkenning hoe snel je eerste woord komt en stiltes van meer dan 5 s.',
       ),
       h('p.small.muted', 'Testscores en hoe je je voelt worden apart bijgehouden: ze lopen vaak niet gelijk op, en beide zijn informatief.'),

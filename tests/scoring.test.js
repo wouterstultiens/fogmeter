@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  tokenize, tokenMatches, detectListWords, phoneticKey, markTranscript, speechTiming, summarizePvt, summarizeSymbols,
+  tokenize, tokenMatches, detectListWords, phoneticKey, markTranscript, speechTiming, summarizePvt, summarizeSymbols, summarizeMath,
   validity, computeIndices, rolling, RUN_IN, METRICS, clarityNow, clarityDay, noteClarity,
 } from '../docs/js/scoring.js';
 
@@ -92,6 +92,36 @@ test('summarizeSymbols uses correct trials for RT', () => {
   const s = summarizeSymbols([{ rt: 1000, correct: true }, { rt: 3000, correct: false }, { rt: 1200, correct: true }]);
   assert.equal(s.accuracy, 0.667);
   assert.equal(s.medianRT, 1100);
+});
+
+test('summarizeMath: correct per minute of answering time, medians of correct answers', () => {
+  const s = summarizeMath([
+    { op: 'mul', rt: 6000, correct: true },
+    { op: 'add', rt: 4000, correct: true },
+    { op: 'sub', rt: 5000, correct: false, corrections: 1 },
+  ]);
+  assert.equal(s.correct, 2);
+  assert.equal(s.accuracy, 0.667);
+  assert.equal(s.ratePerMin, 8); // 2 correct in 15 s
+  assert.equal(s.medianRT, 5000);
+  assert.deepEqual(s.medianRTByOp, { mul: 6000, add: 4000, sub: null });
+  assert.equal(s.corrections, 1);
+});
+
+test('validity: arithmetic below 50% correct means not really trying', () => {
+  assert.equal(validity({ flags: {}, math: { summary: { accuracy: 0.55 } } }).valid, true);
+  assert.deepEqual(validity({ flags: {}, math: { summary: { accuracy: 0.4 } } }).reasons, ['rekenen < 50% goed']);
+});
+
+test('a task added later gets its own run-in before it counts', () => {
+  const sessions = Array.from({ length: RUN_IN + 30 }, (_, i) => fakeSession(i));
+  const from = 10; // arithmetic starts at session 10
+  sessions.slice(from).forEach((s, i) => { s.math = { summary: { ratePerMin: 10 + (i % 4) } }; });
+  const ix = computeIndices(sessions);
+  const z = ix.days.map((d) => d.z.mathRate);
+  assert.ok(z.slice(0, from + RUN_IN).every((v) => v === null), 'no score during its run-in');
+  assert.ok(z.slice(from + RUN_IN).every(Number.isFinite));
+  assert.ok(Number.isFinite(ix.days[RUN_IN].z.pvtSpeed), 'other tasks keep their own run-in');
 });
 
 test('validity flags interruptions, false starts and low accuracy', () => {

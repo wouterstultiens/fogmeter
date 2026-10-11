@@ -13,7 +13,7 @@ const BAND = 0.76;
 
 const SKIP_LABELS = {
   checkin: 'vragen nu', words: 'woordenlijst', delayed: 'woordenlijst 2e keer',
-  pvt: 'reactietest', symbols: 'symbolen', yesterday: 'vragen gisteren',
+  pvt: 'reactietest', symbols: 'symbolen', math: 'rekenen', yesterday: 'vragen gisteren',
 };
 const skippedText = (s) => (s.skipped || []).map((p) => SKIP_LABELS[p] || p).join(', ');
 
@@ -59,9 +59,18 @@ function todayCard(s, days) {
     kpi('Missers (≥355 ms)', p?.lapses, '', (x) => x.pvt?.summary?.lapses),
   ];
   if (s.kind === 'full') {
+    if (s.symbols) {
+      items.push(
+        kpi('Symbolen (mediaan)', s.symbols.summary.medianRT, ' ms', (x) => x.symbols?.summary?.medianRT),
+        kpi('Symbolen goed', s.symbols.summary.accuracy * 100, '%', (x) => (x.symbols?.summary?.accuracy ?? NaN) * 100),
+      );
+    } else {
+      items.push(
+        kpi('Rekenen, goed per min', s.math?.summary?.ratePerMin, '', (x) => x.math?.summary?.ratePerMin, 1),
+        kpi('Rekenen goed', s.math?.summary?.accuracy != null ? s.math.summary.accuracy * 100 : NaN, '%', (x) => (x.math?.summary?.accuracy ?? NaN) * 100),
+      );
+    }
     items.push(
-      kpi('Symbolen (mediaan)', s.symbols?.summary?.medianRT, ' ms', (x) => x.symbols?.summary?.medianRT),
-      kpi('Symbolen goed', s.symbols?.summary?.accuracy != null ? s.symbols.summary.accuracy * 100 : NaN, '%', (x) => (x.symbols?.summary?.accuracy ?? NaN) * 100),
       kpi('Woorden 1e keer', s.memory?.immediate, ' /12', (x) => x.memory?.immediate),
       kpi('Woorden 2e keer', s.memory?.delayed, ' /12', (x) => x.memory?.delayed),
     );
@@ -144,7 +153,7 @@ function lineChart(lines) {
 
 const DOMAINS = [
   ['attention', 'Aandacht (reactietest)'],
-  ['speed', 'Verwerkingssnelheid (symbolen)'],
+  ['math', 'Werkgeheugen (rekenen)'],
   ['memory', 'Geheugen (woordenlijst)'],
 ];
 
@@ -165,7 +174,8 @@ const COLORS = ['#3987e5', '#d95926'];
 const RAW = [
   { title: 'Reactietijd, mediaan (ms)', hint: 'lager = sneller', series: [{ label: 'reactietijd', f: (s) => s.pvt?.summary?.medianRT }] },
   { title: 'Missers, ≥ 355 ms', hint: 'lager = beter', min0: true, series: [{ label: 'missers', f: (s) => s.pvt?.summary?.lapses }] },
-  { title: 'Symbolen, mediaan (ms)', hint: 'lager = sneller', series: [{ label: 'symbolen', f: (s) => s.symbols?.summary?.medianRT }] },
+  { title: 'Rekenen, goed per minuut', hint: 'hoger = beter', digits: 1, series: [{ label: 'rekenen', f: (s) => s.math?.summary?.ratePerMin }] },
+  { title: 'Symbolen (gestopt), mediaan (ms)', hint: 'lager = sneller', series: [{ label: 'symbolen', f: (s) => s.symbols?.summary?.medianRT }] },
   {
     title: 'Woorden onthouden (van 12)', hint: 'hoger = beter', ticks: [0, 6, 12],
     series: [{ label: '1e keer', f: (s) => s.memory?.immediate }, { label: '2e keer', f: (s) => s.memory?.delayed }],
@@ -183,13 +193,17 @@ const RAW = [
 function rawCard(ix) {
   const days = ix.days;
   if (!days.length) return null;
-  const runIn = days.filter((d) => d.runIn);
-  const runInEnd = runIn.length ? runIn[runIn.length - 1].date : null;
+  // Shaded run-in per chart: the first RUN_IN valid sessions that have this score (a later task has its own).
+  const full = days.map((d) => d.session).filter((s) => s.kind === 'full' && s.valid);
+  const runInEnd = (f) => {
+    const start = Math.max(0, full.findIndex((s) => Number.isFinite(f(s))));
+    return (full[start + RUN_IN - 1] || full[full.length - 1])?.date ?? null;
+  };
   const domain = [days[0].date, days[days.length - 1].date];
   return h('div.card.chart',
     h('h3', 'Ruwe scores'),
     h('p.small.muted', 'Alle sessies, zonder vergelijking met je normaal. Grijze achtergrond = inwerkperiode (daar word je vanzelf beter). Open rondje = ongeldige sessie. Tik op een grafiek voor de waarden.'),
-    ...RAW.map((spec) => miniChart(spec, days, domain, runInEnd)),
+    ...RAW.map((spec) => miniChart(spec, days, domain, runInEnd(spec.series[0].f))),
   );
 }
 
@@ -294,7 +308,7 @@ function tableCard(sessions, onOpen) {
     onOpen ? h('p.small.muted', 'Tik op een rij voor alle details.') : null,
     h('div', { style: { overflowX: 'auto' } },
       h('table.small.sessions',
-        h('tr', ...['Datum', 'RT', 'Mis', 'Sym', 'Woorden', 'Helder', ''].map(th)),
+        h('tr', ...['Datum', 'RT', 'Mis', 'Rek', 'Woorden', 'Helder', ''].map(th)),
         ...rows.map((s) => h('tr', {
           style: { opacity: s.valid ? 1 : 0.5 },
           class: onOpen ? 'tap' : null,
@@ -303,7 +317,7 @@ function tableCard(sessions, onOpen) {
           `${fmtD(s.date)} ${fmtTime(new Date(s.startedAt))}`,
           f(s.pvt?.summary?.medianRT),
           f(s.pvt?.summary?.lapses),
-          f(s.symbols?.summary?.medianRT),
+          f(s.math?.summary?.ratePerMin, 1),
           s.memory ? `${s.memory.immediate}+${s.memory.delayed ?? '–'}` : '–',
           f(clarityNow(s)),
           onOpen ? '›' : '',
@@ -406,6 +420,18 @@ export function sessionDetail(s) {
       kv('Opgaven', n(sy.n)),
       kv('Goed', n(sy.accuracy * 100, 0, '%')),
       kv('Mediaan (goede)', n(sy.medianRT, 0, ' ms')),
+    ));
+  }
+
+  const ma = s.math?.summary;
+  if (ma) {
+    out.push(card('Rekenen',
+      kv('Sommen', n(ma.n)),
+      kv('Goed', `${ma.correct} (${n(ma.accuracy * 100, 0, '%')})`),
+      kv('Goed per minuut', n(ma.ratePerMin, 1)),
+      kv('Mediaan (goede)', n(ma.medianRT / 1000, 1, ' s')),
+      kv('Mediaan × / + / −', ['mul', 'add', 'sub'].map((op) => n(ma.medianRTByOp?.[op] / 1000, 1, ' s')).join(' / ')),
+      kv('Verbeterd (⌫)', n(ma.corrections)),
     ));
   }
 

@@ -154,14 +154,13 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .pvt-msg { height: 28px; margin-top: 18px; color: var(--muted); }
 .pvt-msg.warn { color: var(--bad); }
 
-/* Symbol search */
-.sym-top { display: flex; gap: 14px; justify-content: center; margin-bottom: 56px; }
-.sym-bottom { display: flex; gap: 22px; justify-content: center; }
-.pair { display: flex; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 8px; }
-.pair svg { width: 40px; height: 40px; }
-.pair.option { padding: 14px; border-width: 2px; }
-.pair.option svg { width: 54px; height: 54px; }
-.pair.option:active { border-color: var(--accent); }
+/* Mental arithmetic: problem in the middle, phone-style keypad within thumb reach */
+.math-top { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+.math-problem { font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; min-height: 56px; }
+.math-answer { font: 600 36px/1 ui-monospace, "SF Mono", Menlo, monospace; min-width: 4ch; min-height: 48px;
+  padding: 6px 12px; border-bottom: 2px solid var(--line); text-align: center; color: var(--accent); }
+.keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 360px; margin-bottom: 24px; }
+.keypad .key { font-size: 26px; font-weight: 600; padding: 0; min-height: 64px; }
 
 /* Recall / fluency */
 .prompt { font-size: 30px; font-weight: 700; text-align: center; }

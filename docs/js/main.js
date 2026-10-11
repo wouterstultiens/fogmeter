@@ -8,7 +8,7 @@ import { sleepContext } from './sleep.js';
 import { speechTiming, validity, median } from './scoring.js';
 import { captureFromUrl, currentShortcutData, clearShortcutData } from './shortcut.js';
 import { runPvt, PVT_STIMULUS } from './tasks/pvt.js';
-import { runSymbols } from './tasks/symbols.js';
+import { runMath } from './tasks/math.js';
 import { encodeList, recallTask } from './tasks/verbal.js';
 import { checkIn, yesterday, review } from './tasks/questions.js';
 import { resultsView, sessionDetail } from './results.js';
@@ -19,8 +19,8 @@ let syncState = { status: 'idle' };
 // Shortened timings for automated end-to-end tests only (?e2e in the URL).
 const E2E = new URLSearchParams(location.search).has('e2e');
 const DUR = E2E
-  ? { pvt: 6000, symbols: 4, recall: 6 }
-  : { pvt: undefined, symbols: undefined, recall: 30 };
+  ? { pvt: 6000, math: 8000, recall: 6 }
+  : { pvt: undefined, math: undefined, recall: 30 };
 
 // ---------------- home ----------------
 
@@ -73,7 +73,7 @@ function backupWarning(cfg) {
 
 // ---------------- session ----------------
 
-const TIMED = new Set(['encode', 'immediate', 'pvt', 'symbols', 'delayed']);
+const TIMED = new Set(['encode', 'immediate', 'pvt', 'math', 'delayed']);
 // After a few sessions you know the tasks: instruction screens then start by themselves.
 const AUTO_START_AFTER = 3;
 const AUTO_START_S = 4;
@@ -171,22 +171,22 @@ async function start(practice) {
     else s.pvt = { trials: pvt.trials, summary: pvt.summary, stimulus: PVT_STIMULUS };
   }
 
-  current = 'symbols-instr';
-  if (await intro('Symbolen (± 1 min)', [
-    'Bovenaan staan drie paren symbolen. Onderaan twee paren.',
-    'Tik zo snel mogelijk op het onderste paar dat precies zo bovenaan staat.',
+  current = 'math-instr';
+  if (await intro('Rekenen (2 min)', [
+    'Sommen uit je hoofd: keer, plus en min. Maak er zoveel mogelijk goed in 2 minuten.',
+    'Snel, maar wel goed: een fout telt niet mee. Elk antwoord heeft drie cijfers en gaat vanzelf door.',
   ]) === 'skip') {
-    skipped.push('symbols');
+    skipped.push('math');
   } else {
     await countdown(3);
-    current = 'symbols';
-    const sym = await runSymbols({ trials: DUR.symbols });
-    if (sym.skipped) {
-      skipped.push('symbols');
+    current = 'math';
+    const math = await runMath({ durationMs: DUR.math });
+    if (math.skipped) {
+      skipped.push('math');
     } else {
-      s.symbols = { trials: sym.trials, summary: sym.summary };
-      motorOffsets.push(...sym.motor.offsets);
-      s.motor = { symbolMisses: sym.motor.misses };
+      s.math = { trials: math.trials, summary: math.summary };
+      motorOffsets.push(...math.motor.offsets);
+      s.motor = { mathMisses: math.motor.misses };
     }
   }
 
