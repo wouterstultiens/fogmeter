@@ -1,7 +1,7 @@
 // Deterministic daily word lists.
 // Everything is derived from the calendar date so no history is needed on the device.
 // IMPORTANT: once real data collection has started, do not reorder/edit WORDS or the seeds below.
-// That would change which list belongs to which day.
+// That would change which list belongs to which day. New rules only apply from a cutover day onwards.
 
 import { WORDS } from './data/words_nl.js';
 
@@ -9,6 +9,11 @@ const EPOCH_UTC = Date.UTC(2026, 8, 1); // 2026-09-01
 const LIST_LEN = 12;
 const MAX_PER_TAG = { other: 2 }; // otherwise max one word per semantic category (no clusters)
 const MIN_REPEAT_DAYS = 90;
+// From this day (2026-10-12) every list has the same syllable mix: 5 of one syllable, 7 of two (the pool's ratio).
+const BALANCE_FROM_DAY = 41;
+const MAX_PER_SYLLABLES = { 1: 5, 2: 7 };
+// Where counting vowel groups gets it wrong: French loans with a silent final e, and vowels that meet across syllables.
+const SYLLABLE_EXCEPTIONS = { douche: 1, blouse: 1, broche: 1, luiaard: 2, kiosk: 2, viool: 2, riool: 2, pion: 2 };
 
 export function mulberry32(seed) {
   let a = seed >>> 0;
@@ -41,15 +46,23 @@ export function dayIndex(dateStr) {
   return Math.max(0, Math.round((Date.UTC(y, m - 1, d) - EPOCH_UTC) / 86400000));
 }
 
-function fitsList([, tag], list) {
-  return list.filter((e) => e[1] === tag).length < (MAX_PER_TAG[tag] ?? 1);
+/** Syllables of a pool word: vowel groups (ij counts as a vowel), plus a few exceptions. */
+export function syllables(word) {
+  return SYLLABLE_EXCEPTIONS[word] ?? word.replace(/ij/g, 'y').match(/[aeiouy]+/g).length;
 }
 
-function pickList(queue, list = []) {
+function fitsList([word, tag], list, balanced) {
+  if (list.filter((e) => e[1] === tag).length >= (MAX_PER_TAG[tag] ?? 1)) return false;
+  if (!balanced) return true;
+  const n = syllables(word);
+  return list.filter((e) => syllables(e[0]) === n).length < MAX_PER_SYLLABLES[n];
+}
+
+function pickList(queue, list = [], balanced = true) {
   const skipped = [];
   while (list.length < LIST_LEN && queue.length) {
     const e = queue.shift();
-    if (fitsList(e, list)) list.push(e);
+    if (fitsList(e, list, balanced)) list.push(e);
     else skipped.push(e);
   }
   // Skipped words go back to the front so they are used on a following day.
@@ -75,12 +88,13 @@ export function wordListForDay(day) {
   if (cache.day < 0 || day < cache.day) cache = { day: -1, queue: [], cycle: 0, lastUsed: new Map() };
   let list = null;
   for (let d = cache.day + 1; d <= day; d++) {
+    const balanced = d >= BALANCE_FROM_DAY;
     if (cache.queue.length < LIST_LEN * 3) refill(d);
-    list = pickList(cache.queue);
+    list = pickList(cache.queue, [], balanced);
     for (let tries = 0; list.length < LIST_LEN && tries < 20; tries++) {
       // Queue held only words that don't fit today: top it up and continue.
       refill(d, list);
-      list = pickList(cache.queue, list);
+      list = pickList(cache.queue, list, balanced);
     }
     for (const e of list) cache.lastUsed.set(e[0], d);
     cache.day = d;

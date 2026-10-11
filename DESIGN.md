@@ -1,4 +1,12 @@
-# Fogmeter: daily cognitive benchmark, design v0.9 (v1.6 built)
+# Fogmeter: daily cognitive benchmark, design v0.10 (v1.6 built)
+
+> **v0.10 changes (app 1.6.4, word list):**
+> - **Same syllable mix every day.** From 2026-10-12 every list has 5 one-syllable and 7 two-syllable words (the
+>   pool's own ratio, 535 : 776). Before, it varied from 2 to 8 one-syllable words a day, so a day of short words
+>   could look like a good memory day. Syllables = vowel groups with *ij* as one vowel, plus 8 exceptions
+>   (`syllables()` in `schedule.js`). Lists up to 2026-10-11 are unchanged.
+> - In the first 13 sessions short words were not recalled more often (1st recall 44% vs. 47%, 2nd 21% vs. 26%),
+>   so this removes a possible confound rather than a proven one.
 
 > **v0.9 changes (app 1.6.0, sleep times from phone use):**
 > - **No more time fields to confirm.** An automation stamps every time Safari, Obsidian, Todoist or Clock opens or
