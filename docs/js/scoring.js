@@ -201,6 +201,29 @@ export function summarizeMath(trials) {
   };
 }
 
+/**
+ * Digit symbol substitution trials: [{digit, answer, correct, rt}].
+ * ratePerMin (primary) = correct answers per minute spent answering: slower and wrong both lower it.
+ */
+export function summarizeDsst(trials) {
+  const correct = trials.filter((t) => t.correct);
+  const totalMs = trials.reduce((sum, t) => sum + t.rt, 0);
+  const rts = correct.map((t) => t.rt);
+  const half = Math.floor(trials.length / 2);
+  const medOf = (ts) => round(median(ts.filter((t) => t.correct).map((t) => t.rt)), 0);
+  return {
+    n: trials.length,
+    correct: correct.length,
+    accuracy: round(correct.length / Math.max(1, trials.length), 3),
+    ratePerMin: totalMs > 0 ? round(correct.length / (totalMs / 60000), 2) : null,
+    medianRT: round(median(rts), 1),
+    cvRT: rts.length > 1 ? round(sd(rts) / mean(rts), 4) : null,
+    // Within the session the key is partly learned, so the second half is usually faster.
+    medianRTFirstHalf: medOf(trials.slice(0, half)),
+    medianRTSecondHalf: medOf(trials.slice(half)),
+  };
+}
+
 export function round(x, d = 2) {
   if (!Number.isFinite(x)) return null;
   const f = 10 ** d;
@@ -217,6 +240,7 @@ export const SKIP_STAGES = {
   pvt: ['pvt'],
   symbols: ['symbols'],
   math: ['math'],
+  dsst: ['dsst'],
   yesterday: [],
 };
 
@@ -237,6 +261,9 @@ export function validity(session) {
   // Only catches not really trying: real fog lowers accuracy, and those days must stay in.
   const m = session.math?.summary;
   if (m && m.accuracy < 0.5) reasons.push('rekenen < 50% goed');
+  // Errors are rare in this task even on bad days: below 75% means tapping at random.
+  const d = session.dsst?.summary;
+  if (d && d.accuracy < 0.75) reasons.push('symbool-cijfer < 75% goed');
   return { valid: reasons.length === 0, reasons };
 }
 
@@ -256,7 +283,7 @@ export const noteClarity = (n) => clarity(n.clarity, n.fog);
 export const METRICS = {
   pvtSpeed: (s) => s.pvt?.summary?.meanSpeed,
   pvtLapses: (s) => neg(s.pvt?.summary?.lapses),
-  mathRate: (s) => s.math?.summary?.ratePerMin,
+  dsstRate: (s) => s.dsst?.summary?.ratePerMin,
   memory: (s) => (Number.isFinite(s.memory?.immediate) && Number.isFinite(s.memory?.delayed) ? s.memory.immediate + s.memory.delayed : null),
   clarityNow,
   clarityDay,
@@ -298,8 +325,8 @@ export function dailySessions(sessions) {
 
 /**
  * Computes phase, baseline references and per-day indices.
- * Each metric's run-in counts from the first session that has it, so a task added later (arithmetic, 2026-10-12,
- * replacing Symbol Search) gets RUN_IN sessions of practice before its baseline starts.
+ * Each metric's run-in counts from the first session that has it, so a task added later (digit symbol substitution,
+ * 2026-10-16, replacing arithmetic) gets RUN_IN sessions of practice before its baseline starts.
  * Returns { phase, runInDone, baselineCount, days:[{date, obj, subj, domains, session}] }
  */
 export function computeIndices(sessions) {
@@ -326,7 +353,7 @@ export function computeIndices(sessions) {
     }
     const domains = {
       attention: avg([zz.pvtSpeed, zz.pvtLapses]),
-      math: zz.mathRate,
+      speed: zz.dsstRate,
       memory: zz.memory,
     };
     const usable = s.valid;

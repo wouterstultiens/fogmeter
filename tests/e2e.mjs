@@ -2,7 +2,7 @@
 // and a fake speech recogniser that returns deliberately messy transcripts (glued words, plurals, an
 // intrusion), then opens the results and one session's details.
 // Part 2 skips parts ("Overslaan"): a practice run skipping almost everything, then a saved session
-// that is interrupted during the reaction test and skips it, plus arithmetic, the 2nd recall and "Gisteren".
+// that is interrupted during the reaction test and skips it, plus symbol-digit, the 2nd recall and "Gisteren".
 // Run: npm run serve (in another shell), then: node tests/e2e.mjs
 import { chromium } from 'playwright';
 
@@ -127,34 +127,31 @@ await page.waitForSelector('text=Reactietest (3 min)', { timeout: 15000 });
 await clickText('Start');
 const pvtEnd = Date.now() + 20000;
 while (Date.now() < pvtEnd) {
-  if (await page.locator('text=Rekenen (2 min)').count()) break;
+  if (await page.locator('text=Symbolen en cijfers (1½ min)').count()) break;
   if (await page.locator('.pvt-counter:not(.hidden)').count()) {
     await page.waitForTimeout(120);
+    if (!(await page.locator('.pvt-counter').count())) break; // the test ended: don't tap the next screen
     await page.mouse.click(195, 600);
   }
   await page.waitForTimeout(30);
 }
 
-// Arithmetic: solve each problem, typing one wrong digit and correcting it on the first (8 s in ?e2e).
-await page.waitForSelector('text=Rekenen (2 min)');
+// Symbol-digit: answer from the key, one deliberately wrong (6 s in ?e2e).
+await page.waitForSelector('text=Symbolen en cijfers (1½ min)');
 await clickText('Start');
 const key = async (k) => {
   const box = await page.locator(`.key[data-key="${k}"]`).boundingBox();
   await page.mouse.click(box.x + box.width / 2 + 3, box.y + box.height / 2 - 2);
 };
-let prevProblem = '';
-for (let i = 0; i < 3; i++) {
-  await page.waitForFunction((prev) => {
-    const t = document.querySelector('.math-problem')?.textContent || '';
-    return /\d+ [×+−] \d+/.test(t) && t !== prev;
-  }, prevProblem);
+for (let i = 0; i < 5; i++) {
+  await page.waitForSelector('.dsst-probe[data-sym]');
   await page.waitForTimeout(50); // the keypad accepts from the next frame
-  prevProblem = await page.locator('.math-problem').textContent();
-  const [a, op, b] = prevProblem.split(' ');
-  const answer = String(op === '×' ? a * b : op === '+' ? +a + +b : a - b);
-  if (i === 0) { await key(answer[0] === '9' ? '1' : '9'); await key('⌫'); }
-  for (const d of answer) await key(d);
-  if (i === 0) await snap('math');
+  const digit = await page.evaluate(() => {
+    const sym = document.querySelector('.dsst-probe').dataset.sym;
+    return [...document.querySelectorAll('.dsst-cell')].findIndex((c) => c.dataset.sym === sym) + 1;
+  });
+  if (i === 0) await snap('dsst');
+  await key(String(i === 1 ? (digit % 9) + 1 : digit));
 }
 
 // Second recall: a plural form and one normal word.
@@ -237,7 +234,7 @@ const checks = {
   transcriptKept: s.recall.first.speech.transcript.includes('banaan'),
   intrusionSeen: s.memory.auto.extraFirst.includes('banaan'),
   pvtTrials: s.pvt.summary.n >= 1,
-  mathCorrect: s.math.summary.correct >= 3 && s.math.summary.accuracy === 1 && s.math.trials[0].corrections === 1 && s.symbols === undefined,
+  dsstScored: s.dsst.summary.n === 5 && s.dsst.summary.correct === 4 && !s.dsst.trials[1].correct && s.dsst.key.length === 9 && s.math === undefined,
   yesterday: s.yesterday.dayClarity === 8 && !s.yesterday.dayNa && s.yesterday.stress === 2 && s.yesterday.note.endsWith('verder niets'),
   notePrefilled: /^\d\d:\d\d blanco moment in overleg$/.test(notePrefill) && s.yesterday.noteIds?.length === 1,
   noteSaved: notes.length === 1 && notes[0].clarity === 4 && notes[0].text === 'blanco moment in overleg',
@@ -273,7 +270,7 @@ await page.waitForFunction(() => /^[a-z]{2,}/.test(document.querySelector('.bigw
 await skipTask();
 await page.waitForSelector('text=Reactietest (3 min)');
 await clickText('Overslaan');
-await page.waitForSelector('text=Rekenen (2 min)');
+await page.waitForSelector('text=Symbolen en cijfers (1½ min)');
 await clickText('Overslaan');
 await page.waitForSelector('text=Gisteren'); // no 2nd recall: the list was skipped
 await clickText('Overslaan');
@@ -300,7 +297,7 @@ await page.evaluate(() => {
 });
 await snap('pvt-skip');
 await skipTask();
-await page.waitForSelector('text=Rekenen (2 min)');
+await page.waitForSelector('text=Symbolen en cijfers (1½ min)');
 await clickText('Overslaan');
 await page.waitForSelector('text=Woordenlijst, nog een keer');
 await clickText('Start');
@@ -325,15 +322,15 @@ const saved2 = await readStore('sessions');
 const k = saved2[saved2.length - 1];
 const skipChecks = {
   onlyOneSaved: saved2.length === 1, // the practice run is not saved
-  skipped: JSON.stringify(k.skipped) === JSON.stringify(['pvt', 'math', 'delayed', 'yesterday']),
+  skipped: JSON.stringify(k.skipped) === JSON.stringify(['pvt', 'dsst', 'delayed', 'yesterday']),
   validDespiteCall: k.valid === true && k.flags.interrupted === true && k.flags.interruptedDuring.includes('pvt'),
   noPvt: k.pvt === undefined,
-  noMath: k.math === undefined,
+  noDsst: k.dsst === undefined,
   memory: k.memory.immediate === 1 && k.memory.delayed === null && k.memory.retention === null && k.recall.second === null,
   reviewOneColumn: reviewCols === 1,
   yesterdaySkipped: k.yesterday.skipped === true && k.yesterday.dayClarity === null,
   checkinKept: k.now.clarity === 6 && !k.now.skipped,
-  resultsText: results2.includes('Overgeslagen: reactietest, rekenen, woordenlijst 2e keer, vragen gisteren') && results2.includes('1+–'),
+  resultsText: results2.includes('Overgeslagen: reactietest, symbool-cijfer, woordenlijst 2e keer, vragen gisteren') && results2.includes('1+–'),
   detailText: detail2.includes('1 / –'),
 };
 console.log(JSON.stringify({ skipChecks, reasons: k.invalidReasons }, null, 1));

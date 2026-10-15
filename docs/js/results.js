@@ -13,7 +13,7 @@ const BAND = 0.76;
 
 const SKIP_LABELS = {
   checkin: 'vragen nu', words: 'woordenlijst', delayed: 'woordenlijst 2e keer',
-  pvt: 'reactietest', symbols: 'symbolen', math: 'rekenen', yesterday: 'vragen gisteren',
+  pvt: 'reactietest', symbols: 'symbolen', math: 'rekenen', dsst: 'symbool-cijfer', yesterday: 'vragen gisteren',
 };
 const skippedText = (s) => (s.skipped || []).map((p) => SKIP_LABELS[p] || p).join(', ');
 
@@ -64,10 +64,15 @@ function todayCard(s, days) {
         kpi('Symbolen (mediaan)', s.symbols.summary.medianRT, ' ms', (x) => x.symbols?.summary?.medianRT),
         kpi('Symbolen goed', s.symbols.summary.accuracy * 100, '%', (x) => (x.symbols?.summary?.accuracy ?? NaN) * 100),
       );
-    } else {
+    } else if (s.math) {
       items.push(
         kpi('Rekenen, goed per min', s.math?.summary?.ratePerMin, '', (x) => x.math?.summary?.ratePerMin, 1),
         kpi('Rekenen goed', s.math?.summary?.accuracy != null ? s.math.summary.accuracy * 100 : NaN, '%', (x) => (x.math?.summary?.accuracy ?? NaN) * 100),
+      );
+    } else {
+      items.push(
+        kpi('Symbool-cijfer, goed per min', s.dsst?.summary?.ratePerMin, '', (x) => x.dsst?.summary?.ratePerMin, 0),
+        kpi('Symbool-cijfer goed', s.dsst?.summary?.accuracy != null ? s.dsst.summary.accuracy * 100 : NaN, '%', (x) => (x.dsst?.summary?.accuracy ?? NaN) * 100),
       );
     }
     items.push(
@@ -153,7 +158,7 @@ function lineChart(lines) {
 
 const DOMAINS = [
   ['attention', 'Aandacht (reactietest)'],
-  ['math', 'Werkgeheugen (rekenen)'],
+  ['speed', 'Verwerkingssnelheid (symbool-cijfer)'],
   ['memory', 'Geheugen (woordenlijst)'],
 ];
 
@@ -174,7 +179,8 @@ const COLORS = ['#3987e5', '#d95926'];
 const RAW = [
   { title: 'Reactietijd, mediaan (ms)', hint: 'lager = sneller', series: [{ label: 'reactietijd', f: (s) => s.pvt?.summary?.medianRT }] },
   { title: 'Missers, ≥ 355 ms', hint: 'lager = beter', min0: true, series: [{ label: 'missers', f: (s) => s.pvt?.summary?.lapses }] },
-  { title: 'Rekenen, goed per minuut', hint: 'hoger = beter', digits: 1, series: [{ label: 'rekenen', f: (s) => s.math?.summary?.ratePerMin }] },
+  { title: 'Symbool-cijfer, goed per minuut', hint: 'hoger = beter', series: [{ label: 'symbool-cijfer', f: (s) => s.dsst?.summary?.ratePerMin }] },
+  { title: 'Rekenen (gestopt), goed per minuut', hint: 'hoger = beter', digits: 1, series: [{ label: 'rekenen', f: (s) => s.math?.summary?.ratePerMin }] },
   { title: 'Symbolen (gestopt), mediaan (ms)', hint: 'lager = sneller', series: [{ label: 'symbolen', f: (s) => s.symbols?.summary?.medianRT }] },
   {
     title: 'Woorden onthouden (van 12)', hint: 'hoger = beter', ticks: [0, 6, 12],
@@ -308,7 +314,7 @@ function tableCard(sessions, onOpen) {
     onOpen ? h('p.small.muted', 'Tik op een rij voor alle details.') : null,
     h('div', { style: { overflowX: 'auto' } },
       h('table.small.sessions',
-        h('tr', ...['Datum', 'RT', 'Mis', 'Rek', 'Woorden', 'Helder', ''].map(th)),
+        h('tr', ...['Datum', 'RT', 'Mis', 'SC', 'Woorden', 'Helder', ''].map(th)),
         ...rows.map((s) => h('tr', {
           style: { opacity: s.valid ? 1 : 0.5 },
           class: onOpen ? 'tap' : null,
@@ -317,7 +323,7 @@ function tableCard(sessions, onOpen) {
           `${fmtD(s.date)} ${fmtTime(new Date(s.startedAt))}`,
           f(s.pvt?.summary?.medianRT),
           f(s.pvt?.summary?.lapses),
-          f(s.math?.summary?.ratePerMin, 1),
+          f(s.dsst?.summary?.ratePerMin),
           s.memory ? `${s.memory.immediate}+${s.memory.delayed ?? '–'}` : '–',
           f(clarityNow(s)),
           onOpen ? '›' : '',
@@ -432,6 +438,18 @@ export function sessionDetail(s) {
       kv('Mediaan (goede)', n(ma.medianRT / 1000, 1, ' s')),
       kv('Mediaan × / + / −', ['mul', 'add', 'sub'].map((op) => n(ma.medianRTByOp?.[op] / 1000, 1, ' s')).join(' / ')),
       kv('Verbeterd (⌫)', n(ma.corrections)),
+    ));
+  }
+
+  const ds = s.dsst?.summary;
+  if (ds) {
+    out.push(card('Symbool-cijfer',
+      kv('Symbolen', n(ds.n)),
+      kv('Goed', `${ds.correct} (${n(ds.accuracy * 100, 0, '%')})`),
+      kv('Goed per minuut', n(ds.ratePerMin, 1)),
+      kv('Mediaan (goede)', n(ds.medianRT, 0, ' ms')),
+      kv('Mediaan 1e / 2e helft', `${n(ds.medianRTFirstHalf, 0, ' ms')} / ${n(ds.medianRTSecondHalf, 0, ' ms')}`),
+      kv('Variabiliteit (CV)', n(ds.cvRT != null ? ds.cvRT * 100 : NaN, 1, '%')),
     ));
   }
 

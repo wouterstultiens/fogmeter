@@ -1,6 +1,6 @@
 # Fogmeter
 
-A ~7-minute daily morning test for tracking brain fog. It runs as a free web app on iPhone (Safari),
+A ~6½-minute daily morning test for tracking brain fog. It runs as a free web app on iPhone (Safari),
 opened through an iOS Shortcut. Why it measures what it measures: see [DESIGN.md](DESIGN.md).
 
 **The session:**
@@ -9,7 +9,8 @@ opened through an iOS Shortcut. Why it measures what it measures: see [DESIGN.md
 2. Learn a 12-word list (Dutch)
 3. First recall: say the words aloud; speech recognition listens (no tapping)
 4. 3-minute reaction-time test (PVT-B)
-5. Mental arithmetic (2 min): 2-digit × 1-digit, 3-digit + / − 2-digit, typed on a keypad (Symbol Search until 2026-10-11)
+5. Symbol-digit substitution (DSST, 90 s): a key of nine symbols over 1–9, tap the digit of the symbol shown
+   (Symbol Search until 2026-10-11, mental arithmetic 2026-10-12 to 10-15)
 6. Second recall (same as step 3)
 7. Review: both transcripts on top (recognised list words marked), then per-word "1st / 2nd time" ticks prefilled
    from speech recognition. You only fix mistakes. The list is shown only here, at the end.

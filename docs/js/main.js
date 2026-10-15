@@ -8,7 +8,7 @@ import { sleepContext } from './sleep.js';
 import { speechTiming, validity, median } from './scoring.js';
 import { captureFromUrl, currentShortcutData, clearShortcutData } from './shortcut.js';
 import { runPvt, PVT_STIMULUS } from './tasks/pvt.js';
-import { runMath } from './tasks/math.js';
+import { runDsst } from './tasks/dsst.js';
 import { encodeList, recallTask } from './tasks/verbal.js';
 import { checkIn, yesterday, review } from './tasks/questions.js';
 import { resultsView, sessionDetail } from './results.js';
@@ -19,8 +19,8 @@ let syncState = { status: 'idle' };
 // Shortened timings for automated end-to-end tests only (?e2e in the URL).
 const E2E = new URLSearchParams(location.search).has('e2e');
 const DUR = E2E
-  ? { pvt: 6000, math: 8000, recall: 6 }
-  : { pvt: undefined, math: undefined, recall: 30 };
+  ? { pvt: 6000, dsst: 6000, recall: 6 }
+  : { pvt: undefined, dsst: undefined, recall: 30 };
 
 // ---------------- home ----------------
 
@@ -73,7 +73,7 @@ function backupWarning(cfg) {
 
 // ---------------- session ----------------
 
-const TIMED = new Set(['encode', 'immediate', 'pvt', 'math', 'delayed']);
+const TIMED = new Set(['encode', 'immediate', 'pvt', 'dsst', 'delayed']);
 // After a few sessions you know the tasks: instruction screens then start by themselves.
 const AUTO_START_AFTER = 3;
 const AUTO_START_S = 4;
@@ -171,22 +171,23 @@ async function start(practice) {
     else s.pvt = { trials: pvt.trials, summary: pvt.summary, stimulus: PVT_STIMULUS };
   }
 
-  current = 'math-instr';
-  if (await intro('Rekenen (2 min)', [
-    'Sommen uit je hoofd: keer, plus en min. Maak er zoveel mogelijk goed in 2 minuten.',
-    'Snel, maar wel goed: een fout telt niet mee. Elk antwoord heeft drie cijfers en gaat vanzelf door.',
+  current = 'dsst-instr';
+  if (await intro('Symbolen en cijfers (1½ min)', [
+    'Bovenaan staat een sleutel: onder elk symbool een cijfer. De sleutel is elke dag anders.',
+    'In het midden verschijnt steeds een symbool. Tik zo snel mogelijk het cijfer dat erbij hoort.',
+    'Snel, maar wel goed: een fout telt niet mee.',
   ]) === 'skip') {
-    skipped.push('math');
+    skipped.push('dsst');
   } else {
     await countdown(3);
-    current = 'math';
-    const math = await runMath({ durationMs: DUR.math });
-    if (math.skipped) {
-      skipped.push('math');
+    current = 'dsst';
+    const dsst = await runDsst({ durationMs: DUR.dsst });
+    if (dsst.skipped) {
+      skipped.push('dsst');
     } else {
-      s.math = { trials: math.trials, summary: math.summary };
-      motorOffsets.push(...math.motor.offsets);
-      s.motor = { mathMisses: math.motor.misses };
+      s.dsst = { key: dsst.key, trials: dsst.trials, summary: dsst.summary };
+      motorOffsets.push(...dsst.motor.offsets);
+      s.motor = { dsstMisses: dsst.motor.misses };
     }
   }
 

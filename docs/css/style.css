@@ -154,11 +154,16 @@ label.field { display: flex; flex-direction: column; gap: 6px; }
 .pvt-msg { height: 28px; margin-top: 18px; color: var(--muted); }
 .pvt-msg.warn { color: var(--bad); }
 
-/* Mental arithmetic: problem in the middle, phone-style keypad within thumb reach */
-.math-top { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
-.math-problem { font-size: 44px; font-weight: 700; font-variant-numeric: tabular-nums; min-height: 56px; }
-.math-answer { font: 600 36px/1 ui-monospace, "SF Mono", Menlo, monospace; min-width: 4ch; min-height: 48px;
-  padding: 6px 12px; border-bottom: 2px solid var(--line); text-align: center; color: var(--accent); }
+/* Digit symbol substitution: key on top, symbol in the middle, keypad within thumb reach */
+.dsst-key { display: grid; grid-template-columns: repeat(9, 1fr); width: 100%; max-width: 420px; margin-top: 76px;
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.dsst-cell { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 0 6px; }
+.dsst-cell + .dsst-cell { border-left: 1px solid var(--line); }
+.dsst-cell svg { width: 26px; height: 26px; }
+.dsst-digit { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.dsst-mid { flex: 1; display: flex; align-items: center; justify-content: center; }
+.dsst-probe { width: 96px; height: 96px; }
+.dsst-probe svg { width: 100%; height: 100%; }
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; max-width: 360px; margin-bottom: 24px; }
 .keypad .key { font-size: 26px; font-weight: 600; padding: 0; min-height: 64px; }
 

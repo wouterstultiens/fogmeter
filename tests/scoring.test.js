@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  tokenize, tokenMatches, detectListWords, phoneticKey, markTranscript, speechTiming, summarizePvt, summarizeSymbols, summarizeMath,
+  tokenize, tokenMatches, detectListWords, phoneticKey, markTranscript, speechTiming, summarizePvt, summarizeSymbols, summarizeMath, summarizeDsst,
   validity, computeIndices, rolling, RUN_IN, METRICS, clarityNow, clarityDay, noteClarity,
 } from '../docs/js/scoring.js';
 
@@ -113,14 +113,37 @@ test('validity: arithmetic below 50% correct means not really trying', () => {
   assert.deepEqual(validity({ flags: {}, math: { summary: { accuracy: 0.4 } } }).reasons, ['rekenen < 50% goed']);
 });
 
+test('summarizeDsst: correct per minute of answering time, halves, CV', () => {
+  const s = summarizeDsst([
+    { digit: 1, answer: 1, correct: true, rt: 1000 },
+    { digit: 2, answer: 3, correct: false, rt: 2000 },
+    { digit: 3, answer: 3, correct: true, rt: 800 },
+    { digit: 4, answer: 4, correct: true, rt: 1200 },
+  ]);
+  assert.equal(s.n, 4);
+  assert.equal(s.correct, 3);
+  assert.equal(s.accuracy, 0.75);
+  assert.equal(s.ratePerMin, 36); // 3 correct in 5 s
+  assert.equal(s.medianRT, 1000);
+  assert.equal(s.medianRTFirstHalf, 1000);
+  assert.equal(s.medianRTSecondHalf, 1000);
+  assert.ok(s.cvRT > 0);
+});
+
+test('validity: symbol-digit below 75% correct is tapping at random', () => {
+  assert.equal(validity({ flags: {}, dsst: { summary: { accuracy: 0.8 } } }).valid, true);
+  assert.deepEqual(validity({ flags: {}, dsst: { summary: { accuracy: 0.7 } } }).reasons, ['symbool-cijfer < 75% goed']);
+});
+
 test('a task added later gets its own run-in before it counts', () => {
   const sessions = Array.from({ length: RUN_IN + 30 }, (_, i) => fakeSession(i));
-  const from = 10; // arithmetic starts at session 10
-  sessions.slice(from).forEach((s, i) => { s.math = { summary: { ratePerMin: 10 + (i % 4) } }; });
+  const from = 10; // symbol-digit starts at session 10
+  sessions.slice(from).forEach((s, i) => { s.dsst = { summary: { ratePerMin: 40 + (i % 4) } }; });
   const ix = computeIndices(sessions);
-  const z = ix.days.map((d) => d.z.mathRate);
+  const z = ix.days.map((d) => d.z.dsstRate);
   assert.ok(z.slice(0, from + RUN_IN).every((v) => v === null), 'no score during its run-in');
   assert.ok(z.slice(from + RUN_IN).every(Number.isFinite));
+  assert.ok(ix.days.slice(from + RUN_IN).every((d) => Number.isFinite(d.domains.speed)));
   assert.ok(Number.isFinite(ix.days[RUN_IN].z.pvtSpeed), 'other tasks keep their own run-in');
 });
 

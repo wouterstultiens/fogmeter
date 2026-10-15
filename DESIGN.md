@@ -1,4 +1,31 @@
-# Fogmeter: daily cognitive benchmark, design v0.11 (v1.7 built)
+# Fogmeter: daily cognitive benchmark, design v0.12 (v1.8 built)
+
+> **v0.12 changes (app 1.8.0, digit symbol substitution replaces mental arithmetic):**
+> - **Why arithmetic went.** Every addition crossed a hundred and every subtraction dropped below one, so two thirds
+>   of the sums had one shortcut (475 + 78 → 500 + 53): a routine to rehearse, not working memory. Operands near a
+>   round number (99 × 5, 287 − 88, 946 − 47) took ~2.7 s against ~8 s for the rest, and with only 12–17 sums a
+>   day the luck of the draw moved the score by 7–14%, about as much as a foggy morning. In the literature
+>   arithmetic is the least fog-sensitive of the candidates: an addition test kept improving over 6 weeks while
+>   the PVT got worse; after disrupted sleep the PVT was hit and addition was not; NASA's Cognition battery has
+>   no arithmetic.
+> - **Why DSST.** After the PVT the test most hurt by a night without sleep (d 0.68 vs 1.00; Basner 2015).
+>   In 14 days of daily smartphone testing it was the only test that tracked how well people could concentrate
+>   that day, and 90 s gave clearly better reliability of change than 30 s (Perzl 2024). Processing speed is the
+>   most consistently affected domain in long COVID. Symbol Search's r = 0.03 was over only 13 days and still on
+>   its practice curve, so it did not show that speed is useless.
+> - **Task** (`tasks/dsst.js`): a key of nine symbols over the digits 1–9 at the top, one symbol in the middle,
+>   tap its digit on a 3 × 3 keypad. Fixed 90 s, no feedback, 150 ms blank between symbols.
+>   - **Always the same nine symbols**, chosen to have no near-twins, so every day is equally hard. Only the
+>     symbol ↔ digit pairing is shuffled each day (stored as `dsst.key`), so it can't be learned across days.
+>   - Digits come in shuffled blocks of 1–9, never the same twice in a row: every key position equally often.
+>   - ~60–80 answers a session instead of ~15 sums, and no shortcuts.
+> - **Primary metric:** correct answers per minute of answering time (`dsst.summary.ratePerMin`). Also stored:
+>   accuracy, median correct RT, its CV, median RT in the 1st vs 2nd half (learning the key within the session),
+>   every trial.
+> - **Validity:** under 75% correct = tapping at random (errors are rare in this task, even on bad days).
+> - **Own run-in** of 14 sessions from its first session; the OCI domain is "speed" again. Arithmetic
+>   (2026-10-12 to 10-15) and Symbol Search stay in the results as raw charts and session details.
+> - The session gets ~30 s shorter (~6½ min).
 
 > **v0.11 changes (app 1.7.0, mental arithmetic replaces Symbol Search):**
 > - **Why.** Over the first 13 sessions, with the practice trend removed, Symbol Search correlated 0.03 with morning
@@ -564,6 +591,7 @@ Bringing 4–6 weeks of app data to that appointment is genuinely useful.
 - Ortelli P et al. (2022). Attention and executive deficits in post-COVID. *Sci Rep*.
 - Schwarz J et al. (2025). Day-to-day sleep and smartphone DSST performance. *Sleep* zsaf321.
 - Buxton OM et al. (2025). Sleep fragmentation and next-day cognition (M2C2). *Sleep Health*.
+- Perzl MA et al. (2024). Within-person reliability and sensitivity of brief smartphone cognitive tests (DSST, SART, PVT) over 14 days. https://pmc.ncbi.nlm.nih.gov/articles/PMC11292980/
 - Gunn C et al. (2018). Next-day effects of heavy alcohol consumption on cognition. *Addiction*.
 - Carney CE et al. (2012). The Consensus Sleep Diary. *Sleep* 35:287.
 - Debowska A et al. (2024). Brain Fog Scale: development and validation. *Pers Individ Differ* 216:112427.

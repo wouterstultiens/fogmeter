@@ -18,4 +18,4 @@ export function setConfig(patch) {
   return next;
 }
 
-export const APP_VERSION = '1.7.0';
+export const APP_VERSION = '1.8.0';
